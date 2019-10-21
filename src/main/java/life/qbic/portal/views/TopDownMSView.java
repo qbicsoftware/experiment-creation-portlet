@@ -13,7 +13,7 @@ import life.qbic.portal.parsing.SamplePreparator;
 import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
-public class TopDownMSView extends ImportRegisterStep implements IWizardStep {
+public class TopDownMSView extends ImportRegisterView implements IWizardStep {
 
   public TopDownMSView(List<Sample> previousLevel, OpenbisV3ReadController readController,
       OpenbisV3CreationController controller, String space, String project) {

@@ -21,7 +21,6 @@ import com.vaadin.ui.Component;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Layout;
-import com.vaadin.ui.Notification;
 import com.vaadin.ui.TabSheet;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.TextField;
@@ -32,6 +31,7 @@ import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.experiments.OpenbisExperiment;
 import life.qbic.datamodel.identifiers.ExperimentCodeFunctions;
 import life.qbic.openbis.openbisclient.IOpenBisClient;
+import life.qbic.openbis.openbisclient.OpenBisClient;
 import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
 import life.qbic.portal.model.ExperimentTemplate;
@@ -52,7 +52,7 @@ import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
 /**
- * Entry point for portlet project-overview-portlet. This class derives from {@link QBiCPortletUI},
+ * Entry point for portlet experiment-creation-portlet. This class derives from {@link QBiCPortletUI},
  * which is found in the {@code portal-utils-lib} library.
  * 
  * @see <a href=https://github.com/qbicsoftware/portal-utils-lib>portal-utils-lib</a>
@@ -66,7 +66,6 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   public static boolean v3API = true;
   private OpenbisV3APIWrapper v3;
   OpenbisV3CreationController creationController;
-  public static String MSLabelingMethods;
   public static String tmpFolder;
 
   private ConfigurationManager config;
@@ -74,6 +73,7 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   private IOpenBisClient openbis;
 
   private final TabSheet tabs = new TabSheet();
+  private final String A4B_SPACE = "A4B_TESTING";
   private Table optionsTable;
   private Table expTable;
   private Button addExperiment;
@@ -118,8 +118,30 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     species = v3.getVocabLabelToCode("Q_NCBI_TAXONOMY");
     cellLines = v3.getVocabLabelToCode("Q_CELL_LINES");
 
-    projSelection =
-        new ProjectInformationComponent(readController.getSpaceNames(), new HashSet<>());
+    try {
+      LOG.debug("trying to connect to openbis");
+      this.openbis = new OpenBisClient(config.getDataSourceUser(), config.getDataSourcePassword(),
+          config.getDataSourceUrl());
+      this.openbis.login();
+      v3 = new OpenbisV3APIWrapper(config.getDataSourceUrl(), config.getDataSourceUser(),
+          config.getDataSourcePassword(), user);
+    } catch (Exception e) {
+      LOG.error(
+          "User \"" + user + "\" could not connect to openBIS and has been informed of this.");
+      contextLayout.addComponent(new Label(
+          "Data Management System could not be reached. Please try again later or contact us."));
+      return contextLayout;
+    }
+    // TODO workaround for API v3?
+    List<String> spaces = openbis.getUserSpaces(user);
+    //TODO move this to config or replace by user role on liferay, once out of testing phase
+    if(!spaces.contains(A4B_SPACE)) {
+      contextLayout.addComponent(new Label(
+          "You are not authorized to create new samples for this project. Please contact our Helpdesk if you think this is an error."));
+      return contextLayout;
+    }
+
+    projSelection = new ProjectInformationComponent(spaces, new HashSet<>());
     HorizontalLayout topFilters = new HorizontalLayout();
     topFilters.setCaption("Select your Project or filter by Barcode");
     topFilters.addComponent(projSelection);
@@ -249,7 +271,7 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       }
     });
 
-    projSelection.getSpaceBox().setValue("A4B_TESTING");
+    projSelection.getSpaceBox().setValue(A4B_SPACE);
 
     projSelection.getProjectBox().addValueChangeListener(new ValueChangeListener() {
 

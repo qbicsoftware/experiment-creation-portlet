@@ -13,7 +13,7 @@ import life.qbic.portal.parsing.SamplePreparator;
 import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
-public class DeglycosylationView extends ImportRegisterStep implements IWizardStep {
+public class DeglycosylationView extends ImportRegisterView implements IWizardStep {
 
   public DeglycosylationView(List<Sample> previousLevel, OpenbisV3ReadController readController,
       OpenbisV3CreationController controller, String space, String project) {

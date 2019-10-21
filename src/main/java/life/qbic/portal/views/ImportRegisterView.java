@@ -8,8 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +31,7 @@ import com.vaadin.ui.Upload.FinishedEvent;
 import com.vaadin.ui.Upload.FinishedListener;
 import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.samples.ISampleBean;
+import life.qbic.datamodel.samples.SampleType;
 import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
 import life.qbic.portal.components.Uploader;
@@ -45,7 +46,7 @@ import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.utils.TimeUtils;
 
-public abstract class ImportRegisterStep extends ARegistrationView {
+public abstract class ImportRegisterView extends ARegistrationView {
 
   private VerticalLayout infos;
   private Upload upload;
@@ -57,10 +58,11 @@ public abstract class ImportRegisterStep extends ARegistrationView {
   protected List<PreliminaryOpenbisExperiment> msProperties;
   protected List<PreliminaryOpenbisExperiment> protProperties;
   private List<String> barcodes;
+  private Uploader uploader;
 
-  private static final Logger logger = LogManager.getLogger(ImportRegisterStep.class);
+  private static final Logger logger = LogManager.getLogger(ImportRegisterView.class);
 
-  public ImportRegisterStep(ExperimentalDesignType type, List<Sample> previousLevel,
+  public ImportRegisterView(ExperimentalDesignType type, List<Sample> previousLevel,
       OpenbisV3ReadController readController, OpenbisV3CreationController controller, String space,
       String project) {
     super(readController, controller, space, project);
@@ -72,7 +74,7 @@ public abstract class ImportRegisterStep extends ARegistrationView {
 
     infos.addComponent(createTSVDownloadComponent(designType, barcodes));
 
-    Uploader uploader = new Uploader(OverviewUIPortlet.tmpFolder);
+    uploader = new Uploader(OverviewUIPortlet.tmpFolder);
     upload = new Upload("Upload your file here", uploader);
     upload.setButtonCaption("Upload");
     initUploadListeners(uploader);
@@ -235,9 +237,9 @@ public abstract class ImportRegisterStep extends ARegistrationView {
                   readController.getVocabLabelsToCodes("Q_MS_LCMS_METHODS");
               readController.getVocabLabelsToCodes("Q_LABELING_METHODS");
 
-              experimentTypeVocabularies.put("Q_MS_DEVICE", new HashSet<>(deviceMap.keySet()));
-              experimentTypeVocabularies.put("Q_MS_LCMS_METHOD",
-                  new HashSet<>(lcmsMethods.values()));
+              // experimentTypeVocabularies.put("Q_MS_DEVICE", new HashSet<>(deviceMap.keySet()));
+              // experimentTypeVocabularies.put("Q_MS_LCMS_METHOD",
+              // new HashSet<>(lcmsMethods.values()));
               VocabularyValidator validator = new VocabularyValidator(experimentTypeVocabularies);
 
               IExperimentalDesignReader reader = designType.getParser();
@@ -344,12 +346,38 @@ public abstract class ImportRegisterStep extends ARegistrationView {
   // }
 
   @Override
-  protected void prepareBarcodeDownload(List<List<ISampleBean>> samples) {
-    String content = "";
-    String name = "";
-    // TODO
-    setTSVWithBarcodes(content, name);
+  protected void prepareBarcodeDownload(List<List<ISampleBean>> levels) {
+    List<String> tsv = preparator.getOriginalTSV();
+
+    StringBuilder builder = new StringBuilder(6000);
+
+    Map<String, String> fileNameToBarcode = new HashMap<String, String>();
+    for (List<ISampleBean> samples : levels) {
+      for (ISampleBean s : samples) {
+        if (s.getType().equals(SampleType.Q_MS_RUN)) {
+          Map<String, Object> props = s.getMetadata();
+          fileNameToBarcode.put(props.get("File").toString(), s.getCode());
+          props.remove("File");
+        }
+      }
+    }
+    int filePos = -1;
+    for (String line : tsv) {
+      String[] splt = line.split("\t");
+      if (filePos < 0) {
+        filePos = Arrays.asList(splt).indexOf("File Name");// TODO generalize?
+        builder.append("QBiC Code\t" + line + "\n");
+      } else {
+        String file = splt[filePos];
+        String code = fileNameToBarcode.get(file);
+        builder.append(code + "\t" + line + "\n");
+      }
+    }
+
+    setTSVWithBarcodes(builder.toString(),
+        uploader.getFileNameWithoutExtension() + "_with_barcodes");
   }
+
 
 
 }

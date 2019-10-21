@@ -4,11 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +20,6 @@ import life.qbic.datamodel.samples.SampleType;
 import life.qbic.datamodel.samples.TSVSampleBean;
 import life.qbic.portal.model.SamplePreparationRun;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
-import life.qbic.xml.properties.Unit;
 import life.qbic.xml.study.TechnologyType;
 
 public class BottomUpDesignReader extends MSDesignReader {

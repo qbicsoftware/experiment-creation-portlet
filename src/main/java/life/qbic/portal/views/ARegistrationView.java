@@ -59,15 +59,6 @@ public abstract class ARegistrationView extends AWizardStep {
     });
   }
 
-
-  // public ProgressBar getProgressBar() {
-  // return bar;
-  // }
-  //
-  // public Label getProgressLabel() {
-  // return registerInfo;
-  // }
-
   public boolean summaryIsSet() {
     return (summary.size() > 0);
   }
@@ -99,10 +90,6 @@ public abstract class ARegistrationView extends AWizardStep {
     setRegEnabled(true);
   }
 
-  // public void setProcessed(List<List<ISampleBean>> processed) {
-  // samples = processed;
-  // }
-  //
   public void setRegEnabled(boolean b) {
     register.setEnabled(b);
     register.setVisible(b);
