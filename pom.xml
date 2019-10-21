@@ -9,10 +9,10 @@
 		<version>1.4.0</version>
 	</parent>
 	<groupId>life.qbic</groupId>
-	<artifactId>project-overview-portlet</artifactId>
+	<artifactId>experiment-creation-portlet</artifactId>
 	<version>0.9.0-SNAPSHOT</version>
-	<name>Project Overview Prototype Portlet</name>
-	<url>http://github.com/qbicsoftware/project-overview-portlet</url>
+	<name>Experiment Creation Prototype Portlet</name>
+	<url>http://github.com/qbicsoftware/experiment-creation-portlet</url>
 	<description>test wizard 2.0</description>
 	<packaging>war</packaging>
 	<!-- we only need to tell maven where to find our parent pom and other QBiC 
