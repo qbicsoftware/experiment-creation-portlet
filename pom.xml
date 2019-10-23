@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>life.qbic</groupId>
 	<artifactId>experiment-creation-portlet</artifactId>
-	<version>0.9.0-SNAPSHOT</version>
+	<version>0.9.0</version>
 	<name>Experiment Creation Prototype Portlet</name>
 	<url>http://github.com/qbicsoftware/experiment-creation-portlet</url>
 	<description>test wizard 2.0</description>
