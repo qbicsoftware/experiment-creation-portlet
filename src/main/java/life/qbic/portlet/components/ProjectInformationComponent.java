@@ -19,7 +19,6 @@ package life.qbic.portlet.components;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-
 import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.validator.StringLengthValidator;
 import com.vaadin.server.FontAwesome;
@@ -31,10 +30,8 @@ import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.TextArea;
 import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
-
 //
 import com.vaadin.ui.CheckBox;
-
 import life.qbic.datamodel.persons.PersonType;
 import life.qbic.datamodel.projects.ProjectInfo;
 import life.qbic.portal.Styles;
@@ -93,6 +90,8 @@ public class ProjectInformationComponent extends VerticalLayout {
     Styles.iconButton(reloadProjects, FontAwesome.REFRESH);
 
     HorizontalLayout proj = new HorizontalLayout();
+    // TODO hide new project creation for now
+    proj.setVisible(false);
     proj.setCaption("New Sub-Project");
     proj.addComponent(project);
     proj.addComponent(reloadProjects);

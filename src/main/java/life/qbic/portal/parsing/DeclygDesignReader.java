@@ -33,7 +33,7 @@ public class DeclygDesignReader extends MSDesignReader {
     this.mandatoryFilled = new ArrayList<String>(Arrays.asList("Digestion", "MS Device", "Preparation Date",
         "MS Run Date", "File Name", "Protein Barcode"));
     this.optionalCols =
-        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment"));
+        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment", "Labeling Type", "Label"));
 
     headersToTypeCodePerSampletype = new HashMap<>();
     headersToTypeCodePerSampletype.put(SampleType.Q_TEST_SAMPLE, new HashMap<>());
@@ -116,8 +116,8 @@ public class DeclygDesignReader extends MSDesignReader {
     List<ISampleBean> beans = new ArrayList<>();
     List<List<ISampleBean>> order = new ArrayList<>();
     Map<String, TSVSampleBean> prepKeyToSample = new HashMap<>();
-    Map<SamplePreparationRun, Map<String, String>> expIDToFracExp = new HashMap<>();
-    Map<MSRunCollection, Map<String, String>> msIDToMSExp = new HashMap<>();
+    Map<SamplePreparationRun, Map<String, Object>> expIDToFracExp = new HashMap<>();
+    Map<MSRunCollection, Map<String, Object>> msIDToMSExp = new HashMap<>();
     int rowID = 0;
     int sampleID = 0;
     for (String[] row : data) {
@@ -192,16 +192,16 @@ public class DeclygDesignReader extends MSDesignReader {
           prepKeyToSample.put(prepID, prepSample);
 
           prepSample.setExperiment(Integer.toString(samplePrepRun.hashCode()));
-          Map<String, String> samplePrepExpMetadata = expIDToFracExp.get(samplePrepRun);
+          Map<String, Object> samplePrepExpMetadata = expIDToFracExp.get(samplePrepRun);
           if (samplePrepExpMetadata == null) {
-            Map<String, String> metadata = new HashMap<>();
+            Map<String, Object> metadata = new HashMap<>();
             addFractionationOrEnrichmentToMetadata(metadata, fracType);
-            metadata.put("Q_DIGESTION_ENZYMES", enzymesString);
+//            metadata.put("Q_DIGESTION_ENZYMES", enzymesString);
             expIDToFracExp.put(samplePrepRun,
-                parseFracExperimentData(row, headerMapping, metadata));
+                parsePrepExperimentData(row, headerMapping, metadata));
           } else
             expIDToFracExp.put(samplePrepRun,
-                parseFracExperimentData(row, headerMapping, samplePrepExpMetadata));
+                parsePrepExperimentData(row, headerMapping, samplePrepExpMetadata));
         } else {
           proteinParent = prepSample.getCode();
         }
@@ -210,7 +210,7 @@ public class DeclygDesignReader extends MSDesignReader {
             fillMetadata(header, row, meta, factors, loci, SampleType.Q_MS_RUN));
         MSRunCollection msRuns = new MSRunCollection(samplePrepRun, msRunDate);
         msRun.setExperiment(Integer.toString(msRuns.hashCode()));
-        Map<String, String> msExperiment = msIDToMSExp.get(msRuns);
+        Map<String, Object> msExperiment = msIDToMSExp.get(msRuns);
         if (msExperiment == null)
           msIDToMSExp.put(msRuns, parseMSExperimentData(row, headerMapping, new HashMap<>()));
         msRun.addParentID(proteinParent);
@@ -224,7 +224,7 @@ public class DeclygDesignReader extends MSDesignReader {
     // fractionation experiments
     List<PreliminaryOpenbisExperiment> fracExperiments = new ArrayList<>();
     for (SamplePreparationRun prepRun : expIDToFracExp.keySet()) {
-      Map<String, String> map = expIDToFracExp.get(prepRun);
+      Map<String, Object> map = expIDToFracExp.get(prepRun);
       // map.put("Code", Integer.toString(prepRun.hashCode()));// used to match samples to their
       // experiments later
       // msExperiments.add(map);
@@ -238,7 +238,7 @@ public class DeclygDesignReader extends MSDesignReader {
     // MS experiments
     List<PreliminaryOpenbisExperiment> msExperiments = new ArrayList<>();
     for (MSRunCollection runCollection : msIDToMSExp.keySet()) {
-      Map<String, String> map = msIDToMSExp.get(runCollection);
+      Map<String, Object> map = msIDToMSExp.get(runCollection);
       // map.put("Code", Integer.toString(runCollection.hashCode()));// used to match samples to
       // their
       // experiments later

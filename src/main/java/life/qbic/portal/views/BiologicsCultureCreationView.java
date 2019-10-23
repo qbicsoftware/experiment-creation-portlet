@@ -82,11 +82,6 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
     proteinNum.setValue("1");
   }
 
-  //
-  // private String parseComboLabel(String colname, Object id) {
-  // return (String) ((ComboBox) table.getItem(id).getItemProperty(colname).getValue()).getValue();
-  // }
-
   private String parseTextFieldValue(String colname, Object id) {
     return ((TextField) sampleInfos.getItem(id).getItemProperty(colname).getValue()).getValue();
   }
@@ -120,14 +115,14 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
   }
 
   private void addExperimentsAndSamples() {
-    Map<String, String> cultureExpProps = new HashMap<>();
+    Map<String, Object> cultureExpProps = new HashMap<>();
     String cultureName = "Representative for cell culture";
     if (!company.getValue().isEmpty()) {
       cultureName += " at " + company.getValue();
     }
     cultureExpProps.put("Q_SECONDARY_NAME", cultureName);
     cultureExpProps.put("Q_ADDITIONAL_INFO", biologicName.getValue());
-    Map<String, String> proteinExpProps = new HashMap<>();
+    Map<String, Object> proteinExpProps = new HashMap<>();
     proteinExpProps.put("Q_SECONDARY_NAME", "Preparation of biologic " + biologicName.getValue());
     PreliminaryOpenbisExperiment cultureExp =
         new PreliminaryOpenbisExperiment(ExperimentType.Q_SAMPLE_EXTRACTION, cultureExpProps);

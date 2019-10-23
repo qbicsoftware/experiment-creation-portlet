@@ -10,13 +10,13 @@ import life.qbic.datamodel.samples.ISampleBean;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
 import life.qbic.portal.parsing.ExperimentalDesignType;
 import life.qbic.portal.parsing.SamplePreparator;
-import life.qbic.portlet.openbis.OpenbisV3CreationController;
+import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
 public class BottomUpMSView extends ImportRegisterView implements IWizardStep {
 
   public BottomUpMSView(List<Sample> previousLevel, OpenbisV3ReadController readController,
-      OpenbisV3CreationController controller, String space, String project) {
+      IOpenbisCreationController controller, String space, String project) {
     super(ExperimentalDesignType.BottomUp, previousLevel, readController, controller, space,
         project);
   }
@@ -55,12 +55,5 @@ public class BottomUpMSView extends ImportRegisterView implements IWizardStep {
     }
     return res;
   }
-
-  @Override
-  public void registrationDone(String errors) {
-    // TODO Auto-generated method stub
-
-  }
-
 
 }

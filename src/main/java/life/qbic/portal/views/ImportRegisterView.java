@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ import life.qbic.portal.parsing.IExperimentalDesignReader;
 import life.qbic.portal.parsing.SamplePreparator;
 import life.qbic.portal.parsing.VocabularyValidator;
 import life.qbic.portal.portlet.OverviewUIPortlet;
-import life.qbic.portlet.openbis.OpenbisV3CreationController;
+import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.utils.TimeUtils;
 
@@ -54,7 +55,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
   private List<List<ISampleBean>> samples;
   private ExperimentalDesignType designType;
   private SamplePreparator preparator;
-  protected List<Map<String, String>> metadataList;
+  protected List<Map<String, Object>> metadataList;
   protected List<PreliminaryOpenbisExperiment> msProperties;
   protected List<PreliminaryOpenbisExperiment> protProperties;
   private List<String> barcodes;
@@ -63,7 +64,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
   private static final Logger logger = LogManager.getLogger(ImportRegisterView.class);
 
   public ImportRegisterView(ExperimentalDesignType type, List<Sample> previousLevel,
-      OpenbisV3ReadController readController, OpenbisV3CreationController controller, String space,
+      OpenbisV3ReadController readController, IOpenbisCreationController controller, String space,
       String project) {
     super(readController, controller, space, project);
     barcodes = collectBarcodes(previousLevel);
@@ -220,8 +221,6 @@ public abstract class ImportRegisterView extends ARegistrationView {
               // openbis.getVocabCodesAndLabelsForVocab("Q_MS_DEVICES");
               // Map<String, String> cellLinesMap =
               // openbis.getVocabCodesAndLabelsForVocab("Q_CELL_LINES");
-              // Map<String, String> enzymeMap =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_DIGESTION_PROTEASES");
               // Map<String, String> chromTypes =
               // openbis.getVocabCodesAndLabelsForVocab("Q_CHROMATOGRAPHY_TYPES");
               // Map<String, String> purificationMethods =
@@ -235,11 +234,20 @@ public abstract class ImportRegisterView extends ARegistrationView {
                   readController.getVocabLabelsToCodes("Q_MS_ENRICHMENT_PROTOCOLS");
               Map<String, String> lcmsMethods =
                   readController.getVocabLabelsToCodes("Q_MS_LCMS_METHODS");
-              readController.getVocabLabelsToCodes("Q_LABELING_METHODS");
+              Map<String, String> labelingMethods =
+                  readController.getVocabLabelsToCodes("Q_LABELING_TYPES");
 
-              // experimentTypeVocabularies.put("Q_MS_DEVICE", new HashSet<>(deviceMap.keySet()));
-              // experimentTypeVocabularies.put("Q_MS_LCMS_METHOD",
-              // new HashSet<>(lcmsMethods.values()));
+              experimentTypeVocabularies.put("Q_MS_DEVICE", new HashSet<>(deviceMap.values()));
+              experimentTypeVocabularies.put("Q_MS_LCMS_METHOD",
+                  new HashSet<>(lcmsMethods.values()));
+              experimentTypeVocabularies.put("Q_MS_FRACTIONATION_METHOD",
+                  new HashSet<String>(fractionationTypes.values()));
+              experimentTypeVocabularies.put("Q_MS_ENRICHMENT_METHOD",
+                  new HashSet<String>(enrichmentTypes.values()));
+              experimentTypeVocabularies.put("Q_LABELING_METHOD",
+                  new HashSet<String>(labelingMethods.values()));
+              // TODO
+              experimentTypeVocabularies.put("Q_DIGESTION_METHOD", enzymeMap.keySet());
               VocabularyValidator validator = new VocabularyValidator(experimentTypeVocabularies);
 
               IExperimentalDesignReader reader = designType.getParser();
@@ -260,7 +268,12 @@ public abstract class ImportRegisterView extends ARegistrationView {
                 for (PreliminaryOpenbisExperiment e : protProperties) {
                   metadataList.add(e.getProperties());
                 }
-                vocabValid = validator.validateExperimentMetadata(metadataList);
+                Map<String, Set<String>> pretransformedProperties = new HashMap<>();
+                pretransformedProperties.put("Fractionation_Enrichment_Placeholder", new HashSet<>(
+                    Arrays.asList("Q_MS_FRACTIONATION_METHOD", "Q_MS_ENRICHMENT_METHOD")));
+
+                vocabValid = validator.transformAndValidateExperimentMetadata(metadataList,
+                    pretransformedProperties);
               }
               if (readSuccess && vocabValid) {
                 List<SampleSummaryBean> summaries = preparator.getSummary();

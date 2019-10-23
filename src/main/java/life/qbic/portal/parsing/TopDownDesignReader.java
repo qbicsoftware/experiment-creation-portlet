@@ -4,11 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +20,6 @@ import life.qbic.datamodel.samples.SampleType;
 import life.qbic.datamodel.samples.TSVSampleBean;
 import life.qbic.portal.model.SamplePreparationRun;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
-import life.qbic.xml.properties.Unit;
 import life.qbic.xml.study.TechnologyType;
 
 public class TopDownDesignReader extends MSDesignReader {
@@ -37,21 +33,11 @@ public class TopDownDesignReader extends MSDesignReader {
     this.mandatoryFilled = new ArrayList<String>(
         Arrays.asList("MS Device", "Preparation Date", "MS Run Date", "File Name", "Protein Barcode"));
     this.optionalCols =
-        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment"));
+        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment", "Labeling Type", "Label"));
 
     headersToTypeCodePerSampletype = new HashMap<>();
     headersToTypeCodePerSampletype.put(SampleType.Q_TEST_SAMPLE, new HashMap<>());
     // headersToTypeCodePerSampletype.put("SampleType.Q_MS_RUN", msRunMetadata);
-  }
-
-  public static void main(String[] args) throws IOException {
-    TopDownDesignReader r = new TopDownDesignReader();
-
-    File example = new File(
-        r.getClass().getClassLoader().getResource("examples/a4b_topdown_format.tsv").getFile());
-    System.out.println(r.readSamples(example, false));
-    System.out.println(r.getExperimentInfos());
-    System.out.println(r.error);
   }
 
   /**
@@ -117,8 +103,8 @@ public class TopDownDesignReader extends MSDesignReader {
     List<ISampleBean> beans = new ArrayList<>();
     List<List<ISampleBean>> order = new ArrayList<>();
     Map<String, TSVSampleBean> analyteToSample = new HashMap<>();
-    Map<SamplePreparationRun, Map<String, String>> expIDToFracExp = new HashMap<>();
-    Map<MSRunCollection, Map<String, String>> msIDToMSExp = new HashMap<>();
+    Map<SamplePreparationRun, Map<String, Object>> expIDToFracExp = new HashMap<>();
+    Map<MSRunCollection, Map<String, Object>> msIDToMSExp = new HashMap<>();
 
     int rowID = 0;
     int sampleID = 0;
@@ -178,14 +164,15 @@ public class TopDownDesignReader extends MSDesignReader {
             analyteToSample.put(fracID, fracSample);
 
             fracSample.setExperiment(Integer.toString(fracRun.hashCode()));
-            Map<String, String> fracExperimentMetadata = expIDToFracExp.get(fracRun);
+            Map<String, Object> fracExperimentMetadata = expIDToFracExp.get(fracRun);
             if (fracExperimentMetadata == null) {
-              Map<String, String> metadata = new HashMap<>();
-              metadata.put("Q_FRACTIONATION_TYPE", fracType);
-              expIDToFracExp.put(fracRun, parseFracExperimentData(row, headerMapping, metadata));
+              Map<String, Object> metadata = new HashMap<>();
+              addFractionationOrEnrichmentToMetadata(metadata, fracType);
+//              metadata.put("Q_FRACTIONATION_TYPE", fracType);
+              expIDToFracExp.put(fracRun, parsePrepExperimentData(row, headerMapping, metadata));
             } else
               expIDToFracExp.put(fracRun,
-                  parseFracExperimentData(row, headerMapping, fracExperimentMetadata));
+                  parsePrepExperimentData(row, headerMapping, fracExperimentMetadata));
           } else {
             proteinParent = fracSample.getCode();
           }
@@ -195,7 +182,7 @@ public class TopDownDesignReader extends MSDesignReader {
             fillMetadata(header, row, meta, factors, loci, SampleType.Q_MS_RUN));
         MSRunCollection msRuns = new MSRunCollection(fracRun, msRunDate);
         msRun.setExperiment(Integer.toString(msRuns.hashCode()));
-        Map<String, String> msExperiment = msIDToMSExp.get(msRuns);
+        Map<String, Object> msExperiment = msIDToMSExp.get(msRuns);
         if (msExperiment == null)
           msIDToMSExp.put(msRuns, parseMSExperimentData(row, headerMapping, new HashMap<>()));
         msRun.addParentID(proteinParent);
@@ -209,7 +196,7 @@ public class TopDownDesignReader extends MSDesignReader {
     // fractionation experiments
     List<PreliminaryOpenbisExperiment> fracExperiments = new ArrayList<>();
     for (SamplePreparationRun prepRun : expIDToFracExp.keySet()) {
-      Map<String, String> map = expIDToFracExp.get(prepRun);
+      Map<String, Object> map = expIDToFracExp.get(prepRun);
       // map.put("Code", Integer.toString(prepRun.hashCode()));// used to match samples to their
       // experiments later
       // msExperiments.add(map);
@@ -223,7 +210,7 @@ public class TopDownDesignReader extends MSDesignReader {
     // MS experiments
     List<PreliminaryOpenbisExperiment> msExperiments = new ArrayList<>();
     for (MSRunCollection runCollection : msIDToMSExp.keySet()) {
-      Map<String, String> map = msIDToMSExp.get(runCollection);
+      Map<String, Object> map = msIDToMSExp.get(runCollection);
       // map.put("Code", Integer.toString(runCollection.hashCode()));// used to match samples to
       // their
       // experiments later

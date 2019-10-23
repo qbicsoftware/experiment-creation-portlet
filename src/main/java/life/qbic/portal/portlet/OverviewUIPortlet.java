@@ -39,21 +39,23 @@ import life.qbic.portal.model.ExtendedOpenbisExperiment;
 import life.qbic.portal.utils.ConfigurationManager;
 import life.qbic.portal.utils.ConfigurationManagerFactory;
 import life.qbic.portal.utils.PortalUtils;
+import life.qbic.portal.views.BiologicsCultureCreationView;
 import life.qbic.portal.views.BottomUpMSView;
 import life.qbic.portal.views.DeglycosylationView;
 import life.qbic.portal.views.IWizardStep;
-import life.qbic.portal.views.BiologicsCultureCreationView;
 import life.qbic.portal.views.ProteinCreationView;
 import life.qbic.portal.views.RegistrationView;
 import life.qbic.portal.views.TopDownMSView;
 import life.qbic.portlet.components.ProjectInformationComponent;
+import life.qbic.portlet.openbis.IOpenbisCreationController;
+import life.qbic.portlet.openbis.OpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3APIWrapper;
 import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
 /**
- * Entry point for portlet experiment-creation-portlet. This class derives from {@link QBiCPortletUI},
- * which is found in the {@code portal-utils-lib} library.
+ * Entry point for portlet experiment-creation-portlet. This class derives from
+ * {@link QBiCPortletUI}, which is found in the {@code portal-utils-lib} library.
  * 
  * @see <a href=https://github.com/qbicsoftware/portal-utils-lib>portal-utils-lib</a>
  */
@@ -63,9 +65,9 @@ import life.qbic.portlet.openbis.OpenbisV3ReadController;
 public class OverviewUIPortlet extends QBiCPortletUI {
 
   public static boolean development = true;
-  public static boolean v3API = true;
+  public static boolean v3Registration = false;
   private OpenbisV3APIWrapper v3;
-  OpenbisV3CreationController creationController;
+  private IOpenbisCreationController creationController;
   public static String tmpFolder;
 
   private ConfigurationManager config;
@@ -78,10 +80,10 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   private Table expTable;
   private Button addExperiment;
   private Map<String, String> cellLines;
-  private Map<String, String> species;
+  // private Map<String, String> species;
 
-  OpenbisV3ReadController readController;
-  ProjectInformationComponent projSelection;
+  private OpenbisV3ReadController readController;
+  private ProjectInformationComponent projSelection;
 
   private Map<String, List<Sample>> experimentCodeToSamples;
   private Map<String, List<ExtendedOpenbisExperiment>> optionToExperiments;
@@ -111,13 +113,6 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       return contextLayout;
     }
 
-    v3 = new OpenbisV3APIWrapper(config.getDataSourceUrl(), config.getDataSourceUser(),
-        config.getDataSourcePassword(), user);
-    readController = new OpenbisV3ReadController(v3);
-    creationController = new OpenbisV3CreationController(readController, user, v3);
-    species = v3.getVocabLabelToCode("Q_NCBI_TAXONOMY");
-    cellLines = v3.getVocabLabelToCode("Q_CELL_LINES");
-
     try {
       LOG.debug("trying to connect to openbis");
       this.openbis = new OpenBisClient(config.getDataSourceUser(), config.getDataSourcePassword(),
@@ -132,10 +127,22 @@ public class OverviewUIPortlet extends QBiCPortletUI {
           "Data Management System could not be reached. Please try again later or contact us."));
       return contextLayout;
     }
+    
+    v3 = new OpenbisV3APIWrapper(config.getDataSourceUrl(), config.getDataSourceUser(),
+        config.getDataSourcePassword(), user);
+    readController = new OpenbisV3ReadController(v3);
+    if (v3Registration) {
+      creationController = new OpenbisV3CreationController(readController, user, v3);
+    } else {
+      creationController = new OpenbisCreationController(openbis, readController, user);
+    }
+    // species = v3.getVocabLabelToCode("Q_NCBI_TAXONOMY");
+    cellLines = v3.getVocabLabelToCode("Q_CELL_LINES");
+
     // TODO workaround for API v3?
     List<String> spaces = openbis.getUserSpaces(user);
-    //TODO move this to config or replace by user role on liferay, once out of testing phase
-    if(!spaces.contains(A4B_SPACE)) {
+    // TODO move this to config or replace by user role on liferay, once out of testing phase
+    if (!spaces.contains(A4B_SPACE)) {
       contextLayout.addComponent(new Label(
           "You are not authorized to create new samples for this project. Please contact our Helpdesk if you think this is an error."));
       return contextLayout;

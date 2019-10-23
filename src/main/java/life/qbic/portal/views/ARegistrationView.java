@@ -11,7 +11,7 @@ import com.vaadin.ui.Button.ClickEvent;
 import life.qbic.datamodel.samples.ISampleBean;
 import life.qbic.portal.utils.PortalUtils;
 import life.qbic.portlet.components.ExperimentSummaryTable;
-import life.qbic.portlet.openbis.OpenbisV3CreationController;
+import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.portlet.openbis.PreRegistrationTaskAdapter;
 import life.qbic.portlet.openbis.RegisteredToOpenbisReadyRunnable;
@@ -26,11 +26,11 @@ public abstract class ARegistrationView extends AWizardStep {
   protected ProgressBar bar;
   protected Button downloadTSV;
   private PreRegistrationTaskAdapter preRegTaskManager;
-  private OpenbisV3CreationController controller;
+  private IOpenbisCreationController controller;
   protected OpenbisV3ReadController readController;
 
   public ARegistrationView(OpenbisV3ReadController readController,
-      OpenbisV3CreationController controller, String space, String project) {
+      IOpenbisCreationController controller, String space, String project) {
     this.controller = controller;
     this.readController = readController;
 
@@ -46,12 +46,12 @@ public abstract class ARegistrationView extends AWizardStep {
       @Override
       public void buttonClick(ClickEvent event) {
         List<List<ISampleBean>> samples = new ArrayList<>(samplesToRegister.values());
-        System.out.println(samplesToRegister);
         preRegTaskManager.resetAndAlignBarcodeCounter();
         preRegTaskManager.createNewCodesForExperimentsAndSamples(samplesToRegister);
-        System.out.println(samplesToRegister);
 
         prepareBarcodeDownload(samples);
+        register.setEnabled(false);
+        showRegistrationProgress();
         controller.registerProjectWithExperimentsAndSamplesBatchWise(samples,
             "project description placeholder", samplesToRegister.keySet(), bar, registerInfo,
             new RegisteredToOpenbisReadyRunnable(view), new HashMap<>(), false);

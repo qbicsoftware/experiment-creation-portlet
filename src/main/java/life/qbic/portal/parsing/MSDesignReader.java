@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -92,9 +93,11 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
   public abstract List<ISampleBean> readSamples(File file, boolean parseGraph) throws IOException;
 
   // TODO
-  protected void addFractionationOrEnrichmentToMetadata(Map<String, String> metadata,
+  protected void addFractionationOrEnrichmentToMetadata(Map<String, Object> metadata,
       String fracType) {
-    metadata.put("Q_FRACTIONATION_TYPE", fracType);
+    if (!fracType.isEmpty()) {
+      metadata.put("Fractionation_Enrichment_Placeholder", fracType);
+    }
   }
 
   protected Set<String> parseDigestionEnzymes(String csEnzymes) {
@@ -105,19 +108,30 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
     return res;
   }
 
-  protected Map<String, String> parseFracExperimentData(String[] row,
-      Map<String, Integer> headerMapping, Map<String, String> metadata) {
+  protected Map<String, Object> parsePrepExperimentData(String[] row,
+      Map<String, Integer> headerMapping, Map<String, Object> metadata) {
     String prepDate = row[headerMapping.get("Preparation Date")];
     if (!prepDate.isEmpty()) {
       metadata.put("Q_PREPARATION_DATE", parseDate(prepDate));
     }
+    if (headerMapping.get("Labeling Type") != null) {
+      String label = row[headerMapping.get("Labeling Type")];
+      if (!label.isEmpty()) {
+        metadata.put("Q_LABELING_METHOD", label);
+      }
+    }
+    if (headerMapping.get("Digestion") != null) {
+      String enzymes = row[headerMapping.get("Digestion")];
+      if (!enzymes.isEmpty()) {
+        metadata.put("Q_DIGESTION_METHOD", new ArrayList<>(parseDigestionEnzymes(enzymes)));
+      }
+    }
     return metadata;
   }
 
-  protected Map<String, String> parseMSExperimentData(String[] row,
-      Map<String, Integer> headerMapping, HashMap<String, String> metadata) {
+  protected Map<String, Object> parseMSExperimentData(String[] row,
+      Map<String, Integer> headerMapping, HashMap<String, Object> metadata) {
     Map<String, String> designMap = new HashMap<String, String>();
-    // lcmsMethod.replace("@", "").replace("+", "").replace("_100ms", ""));
     designMap.put("MS Run Date", "Q_MEASUREMENT_FINISH_DATE");
     designMap.put("Share", "Q_EXTRACT_SHARE");
     designMap.put("MS Device", "Q_MS_DEVICE");
@@ -133,7 +147,9 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
           val = parsers.get(openbisType).parse(val);
         }
       }
-      metadata.put(openbisType, val);
+      if (val != null && !val.isEmpty()) {
+        metadata.put(openbisType, val);
+      }
     }
     return metadata;
   }

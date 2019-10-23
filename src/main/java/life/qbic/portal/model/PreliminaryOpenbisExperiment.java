@@ -5,21 +5,21 @@ import life.qbic.datamodel.experiments.ExperimentType;
 
 public class PreliminaryOpenbisExperiment {
 
-  private Map<String,String> properties;
+  private Map<String,Object> properties;
   private String code;
   private ExperimentType type;
   
   public PreliminaryOpenbisExperiment(ExperimentType type,
-      Map<String, String> props) {
+      Map<String, Object> props) {
     this.type = type;
     this.properties = props;
   }
 
-  public Map<String, String> getProperties() {
+  public Map<String, Object> getProperties() {
     return properties;
   }
 
-  public void setProperties(Map<String, String> properties) {
+  public void setProperties(Map<String, Object> properties) {
     this.properties = properties;
   }
 

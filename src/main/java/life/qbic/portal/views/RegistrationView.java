@@ -8,7 +8,7 @@ import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import life.qbic.datamodel.samples.ISampleBean;
 import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
-import life.qbic.portlet.openbis.OpenbisV3CreationController;
+import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.utils.TimeUtils;
 
@@ -19,7 +19,7 @@ public class RegistrationView extends ARegistrationView implements IWizardStep {
   // private Table summary;
 
   public RegistrationView(OpenbisV3ReadController readController,
-      OpenbisV3CreationController controller, Map<String, List<Sample>> experimentCodeToSamples,
+      IOpenbisCreationController controller, Map<String, List<Sample>> experimentCodeToSamples,
       String space, String project) {
     super(readController, controller, space, project);
     super.initViewComponents();
