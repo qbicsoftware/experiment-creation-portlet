@@ -64,7 +64,7 @@ import life.qbic.portlet.openbis.OpenbisV3ReadController;
 @Widgetset("life.qbic.portal.portlet.AppWidgetSet")
 public class OverviewUIPortlet extends QBiCPortletUI {
 
-  public static boolean development = true;
+  public static boolean development = false;
   public static boolean v3Registration = false;
   private OpenbisV3APIWrapper v3;
   private IOpenbisCreationController creationController;
@@ -114,7 +114,7 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     }
 
     try {
-      LOG.debug("trying to connect to openbis");
+      LOG.info("trying to connect to openbis");
       this.openbis = new OpenBisClient(config.getDataSourceUser(), config.getDataSourcePassword(),
           config.getDataSourceUrl());
       this.openbis.login();

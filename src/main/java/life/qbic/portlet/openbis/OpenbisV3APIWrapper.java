@@ -68,46 +68,48 @@ public class OpenbisV3APIWrapper {
     checklogin();
     SpaceSearchCriteria sc = new SpaceSearchCriteria();
     sc.withCode().thatEquals(name);
-    return API.searchSpaces(userToken, sc, new SpaceFetchOptions());
+    return API.searchSpaces(getActiveToken(), sc, new SpaceFetchOptions());
   }
 
   public SearchResult<Project> getProject(String code) {
     checklogin();
     ProjectSearchCriteria sc = new ProjectSearchCriteria();
     sc.withCode().thatEquals(code);
-    return API.searchProjects(userToken, sc, new ProjectFetchOptions());
+    return API.searchProjects(getActiveToken(), sc, new ProjectFetchOptions());
   }
 
   public SearchResult<Space> getSpacesForUser() {
     checklogin();
-    return API.searchSpaces(userToken, new SpaceSearchCriteria(), new SpaceFetchOptions());
+    return API.searchSpaces(getActiveToken(), new SpaceSearchCriteria(), new SpaceFetchOptions());
   }
 
   public void updateProjects(List<ProjectUpdate> p) {
     checklogin();
-    API.updateProjects(userToken, p);
+    API.updateProjects(getActiveToken(), p);
   }
 
   public void updateExperiments(List<ExperimentUpdate> exps) {
     checklogin();
-    API.updateExperiments(userToken, exps);
+    API.updateExperiments(getActiveToken(), exps);
   }
 
   public void updateDataSets(List<DataSetUpdate> dSets) {
     checklogin();
-    API.updateDataSets(userToken, dSets);
+    API.updateDataSets(getActiveToken(), dSets);
   }
 
   private void checklogin() {
     if (userToken == null) {
       logger.info("Not logged in to the openBIS V3 API. Logging in as user " + user + ".");
       userToken = API.loginAs(adminUser, pw, user);
-      System.out.println(userToken);
+      logger.info("token:");
+      logger.info(userToken);
     }
     if (adminToken == null) {
       logger.info("Logging in as config user.");
       adminToken = adminAPI.login(adminUser, pw);
-      System.out.println(adminToken);
+      logger.info("token:");
+      logger.info(adminToken);
     }
   }
 
@@ -155,14 +157,14 @@ public class OpenbisV3APIWrapper {
   public SearchResult<DataSet> searchDatasets(DataSetSearchCriteria criteria,
       DataSetFetchOptions fetchOptions) {
     checklogin();
-    return API.searchDataSets(userToken, criteria, fetchOptions);
+    return API.searchDataSets(getActiveToken(), criteria, fetchOptions);
   }
 
   public SearchResult<Project> getProjectsOfSpace(String space) {
     checklogin();
     ProjectSearchCriteria sc = new ProjectSearchCriteria();
     sc.withSpace().withCode().thatEquals(space);
-    return API.searchProjects(userToken, sc, new ProjectFetchOptions());
+    return API.searchProjects(getActiveToken(), sc, new ProjectFetchOptions());
   }
 
   public Experiment getExperimentByID(String expID) {
@@ -173,7 +175,7 @@ public class OpenbisV3APIWrapper {
     options.withType();
     options.withProperties();
 
-    Map<IExperimentId, Experiment> map = API.getExperiments(userToken, Arrays.asList(id), options);
+    Map<IExperimentId, Experiment> map = API.getExperiments(getActiveToken(), Arrays.asList(id), options);
     return map.get(id);
   }
 
@@ -183,7 +185,7 @@ public class OpenbisV3APIWrapper {
     sc.withCode().thatEquals(code);
     SampleFetchOptions options = new SampleFetchOptions();
     options.withExperiment();
-    return API.searchSamples(userToken, sc, options);
+    return API.searchSamples(getActiveToken(), sc, options);
   }
 
   public Experiment getExperimentWIthSamplesByID(String expID) {
@@ -197,7 +199,7 @@ public class OpenbisV3APIWrapper {
     options.withSamples().withType();
     options.withRegistrator();
 
-    Map<IExperimentId, Experiment> map = API.getExperiments(userToken, Arrays.asList(id), options);
+    Map<IExperimentId, Experiment> map = API.getExperiments(getActiveToken(), Arrays.asList(id), options);
     return map.get(id);
   }
 
@@ -213,7 +215,7 @@ public class OpenbisV3APIWrapper {
     options.withSamples().withType();
     options.withRegistrator();
 
-    SearchResult<Experiment> res = API.searchExperiments(userToken, sc, options);
+    SearchResult<Experiment> res = API.searchExperiments(getActiveToken(), sc, options);
 
     return res.getObjects();
   }
@@ -224,7 +226,7 @@ public class OpenbisV3APIWrapper {
     VocabularyTermFetchOptions options = new VocabularyTermFetchOptions();
 
     Map<IVocabularyTermId, VocabularyTerm> res =
-        API.getVocabularyTerms(userToken, Arrays.asList(x), options);
+        API.getVocabularyTerms(getActiveToken(), Arrays.asList(x), options);
     return res.get(x).getLabel();
   }
 
@@ -235,7 +237,7 @@ public class OpenbisV3APIWrapper {
     vc.withVocabulary().withCode().thatEquals(vocabulary);
 
     VocabularyTermFetchOptions options = new VocabularyTermFetchOptions();
-    SearchResult<VocabularyTerm> searchResult = API.searchVocabularyTerms(userToken, vc, options);
+    SearchResult<VocabularyTerm> searchResult = API.searchVocabularyTerms(getActiveToken(), vc, options);
 
     Map<String, String> res = new HashMap<String, String>();
     for (VocabularyTerm t : searchResult.getObjects()) {
@@ -262,7 +264,7 @@ public class OpenbisV3APIWrapper {
     options.withProperties();
     options.withRegistrator();
 
-    SearchResult<Sample> res = API.searchSamples(userToken, sc, options);
+    SearchResult<Sample> res = API.searchSamples(getActiveToken(), sc, options);
 
     return res.getObjects();
   }
@@ -277,9 +279,16 @@ public class OpenbisV3APIWrapper {
     options.withProperties();
     options.withRegistrator();
 
-    SearchResult<Experiment> res = API.searchExperiments(userToken, sc, options);
+    SearchResult<Experiment> res = API.searchExperiments(getActiveToken(), sc, options);
 
     return res.getObjects();
+  }
+
+  private String getActiveToken() {
+    if (userToken == null)
+      return adminToken;
+    else
+      return userToken;
   }
 
 }
