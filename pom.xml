@@ -60,7 +60,7 @@
 		<dependency>
 			<groupId>life.qbic</groupId>
 			<artifactId>portal-utils-lib</artifactId>
-			<version>1.7.0-SNAPSHOT</version>
+			<version>1.7.0</version>
 		</dependency>
 		<!-- openBIS client -->
 		<dependency>
