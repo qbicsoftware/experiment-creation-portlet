@@ -12,6 +12,8 @@ public class ExperimentTemplate {
   private String filterCode;
   private String filterValue;
   private ExperimentType parentExperimentType;
+  private SampleType parentTypeFilter;
+  private boolean isParentFilterStrict;
 
   public ExperimentTemplate(String name, String description, ExperimentType experimentType,
       SampleType sampleType) {
@@ -27,7 +29,7 @@ public class ExperimentTemplate {
     this.name = name;
     this.description = description;
   }
-  
+
   public ExperimentType getParentExperimentType() {
     return parentExperimentType;
   }
@@ -101,6 +103,20 @@ public class ExperimentTemplate {
     this.filterCode = code;
     this.filterValue = value;
     return this;
+  }
+
+  public ExperimentTemplate addParentTypeFilter(SampleType type, boolean strict) {
+    this.parentTypeFilter = type;
+    this.isParentFilterStrict = strict;
+    return this;
+  }
+
+  public SampleType getParentFilterType() {
+    return parentTypeFilter;
+  }
+
+  public boolean isParentFilterStrict() {
+    return isParentFilterStrict;
   }
 
   public String getFilterCode() {

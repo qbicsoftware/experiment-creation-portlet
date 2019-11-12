@@ -52,6 +52,7 @@ public class OpenbisV3APIWrapper {
   private String adminUser;
   private String user;
   private String pw;
+  private boolean userCantLogin = false;
 
   public OpenbisV3APIWrapper(String url, String adminUser, String pw, String user) {
     final String URL = url + "/openbis/openbis" + IApplicationServerApi.SERVICE_URL;
@@ -99,17 +100,22 @@ public class OpenbisV3APIWrapper {
   }
 
   private void checklogin() {
-    if (userToken == null) {
-      logger.info("Not logged in to the openBIS V3 API. Logging in as user " + user + ".");
+    if (userToken == null && !userCantLogin) {
+      logger.info("Logging in to the openBIS V3 API as user " + user + ".");
       userToken = API.loginAs(adminUser, pw, user);
-      logger.info("token:");
-      logger.info(userToken);
+      if (userToken != null) {
+        logger.info("Successfully logged in.");
+      } else {
+        logger.info("Could not login, using config user.");
+        userCantLogin = true;
+      }
     }
     if (adminToken == null) {
-      logger.info("Logging in as config user.");
+      logger.info("Logging in to the openBIS V3 API as config user: "+adminUser);
       adminToken = adminAPI.login(adminUser, pw);
-      logger.info("token:");
-      logger.info(adminToken);
+      if (adminToken != null) {
+        logger.info("Successfully logged in.");
+      }
     }
   }
 
@@ -175,7 +181,8 @@ public class OpenbisV3APIWrapper {
     options.withType();
     options.withProperties();
 
-    Map<IExperimentId, Experiment> map = API.getExperiments(getActiveToken(), Arrays.asList(id), options);
+    Map<IExperimentId, Experiment> map =
+        API.getExperiments(getActiveToken(), Arrays.asList(id), options);
     return map.get(id);
   }
 
@@ -185,35 +192,41 @@ public class OpenbisV3APIWrapper {
     sc.withCode().thatEquals(code);
     SampleFetchOptions options = new SampleFetchOptions();
     options.withExperiment();
+    options.withType();
     return API.searchSamples(getActiveToken(), sc, options);
   }
 
-  public Experiment getExperimentWIthSamplesByID(String expID) {
-    checklogin();
-    ExperimentIdentifier id = new ExperimentIdentifier(expID);
-
+  private ExperimentFetchOptions createExpermentFetchOptions(boolean withParentSamples) {
     ExperimentFetchOptions options = new ExperimentFetchOptions();
     options.withType();
     options.withProperties();
     options.withSamples().withProperties();
     options.withSamples().withType();
     options.withRegistrator();
+    if (withParentSamples) {
+      options.withSamples().withParents().withType();
+    }
+    return options;
+  }
 
-    Map<IExperimentId, Experiment> map = API.getExperiments(getActiveToken(), Arrays.asList(id), options);
+  public Experiment getExperimentWithSamplesByID(String expID, boolean withParentSamples) {
+    checklogin();
+    ExperimentIdentifier id = new ExperimentIdentifier(expID);
+
+    ExperimentFetchOptions options = createExpermentFetchOptions(withParentSamples);
+
+    Map<IExperimentId, Experiment> map =
+        API.getExperiments(getActiveToken(), Arrays.asList(id), options);
     return map.get(id);
   }
 
-  public List<Experiment> getExperimentsWithSamplesOfProject(String projectCode) {
+  public List<Experiment> getExperimentsWithSamplesOfProject(String projectCode,
+      boolean withParentSamples) {
     checklogin();
     ExperimentSearchCriteria sc = new ExperimentSearchCriteria();
     sc.withProject().withCode().thatEquals(projectCode);
 
-    ExperimentFetchOptions options = new ExperimentFetchOptions();
-    options.withType();
-    options.withProperties();
-    options.withSamples().withProperties();
-    options.withSamples().withType();
-    options.withRegistrator();
+    ExperimentFetchOptions options = createExpermentFetchOptions(withParentSamples);
 
     SearchResult<Experiment> res = API.searchExperiments(getActiveToken(), sc, options);
 
@@ -235,9 +248,9 @@ public class OpenbisV3APIWrapper {
 
     VocabularyTermSearchCriteria vc = new VocabularyTermSearchCriteria();
     vc.withVocabulary().withCode().thatEquals(vocabulary);
-
     VocabularyTermFetchOptions options = new VocabularyTermFetchOptions();
-    SearchResult<VocabularyTerm> searchResult = API.searchVocabularyTerms(getActiveToken(), vc, options);
+    SearchResult<VocabularyTerm> searchResult =
+        API.searchVocabularyTerms(getActiveToken(), vc, options);
 
     Map<String, String> res = new HashMap<String, String>();
     for (VocabularyTerm t : searchResult.getObjects()) {

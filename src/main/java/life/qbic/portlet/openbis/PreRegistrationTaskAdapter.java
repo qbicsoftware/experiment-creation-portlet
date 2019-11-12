@@ -38,7 +38,7 @@ public class PreRegistrationTaskAdapter {
   public void resetAndAlignBarcodeCounter() {
     logger.info("finding free codes for experiments and samples of project " + project);
     List<ExtendedOpenbisExperiment> exps =
-        openbisReader.getExperimentsWithSamplesOfProject(project);
+        openbisReader.getExperimentsWithSamplesOfProject(project, false);
 
     firstFreeEntityID = 1;
     firstFreeExperimentID = 1;

@@ -53,8 +53,9 @@ public class OpenbisV3ReadController {
     return null;
   }
 
-  public ExtendedOpenbisExperiment getExperimentWithSamplesByID(String id) {
-    Experiment e = v3Wrapper.getExperimentWIthSamplesByID(id);
+  public ExtendedOpenbisExperiment getExperimentWithSamplesByID(String id,
+      boolean fetchParentSamples) {
+    Experiment e = v3Wrapper.getExperimentWithSamplesByID(id, fetchParentSamples);
     if (e != null) {
       return (ExtendedOpenbisExperiment) apiExperimentToQBiCAdaptor(e);
     }
@@ -79,7 +80,7 @@ public class OpenbisV3ReadController {
       return null;
     }
   }
-  
+
   private OpenbisExperiment apiExperimentToQBiCAdaptor(Experiment e) {
 
     Map<String, Object> props = new HashMap<>();
@@ -108,8 +109,10 @@ public class OpenbisV3ReadController {
     }
   }
 
-  public List<ExtendedOpenbisExperiment> getExperimentsWithSamplesOfProject(String projectCode) {
-    List<Experiment> exps = v3Wrapper.getExperimentsWithSamplesOfProject(projectCode);
+  public List<ExtendedOpenbisExperiment> getExperimentsWithSamplesOfProject(String projectCode,
+      boolean fetchParentSamples) {
+    List<Experiment> exps =
+        v3Wrapper.getExperimentsWithSamplesOfProject(projectCode, fetchParentSamples);
     List<ExtendedOpenbisExperiment> res = new ArrayList<>();
     for (Experiment e : exps) {
       ExtendedOpenbisExperiment ex = (ExtendedOpenbisExperiment) apiExperimentToQBiCAdaptor(e);

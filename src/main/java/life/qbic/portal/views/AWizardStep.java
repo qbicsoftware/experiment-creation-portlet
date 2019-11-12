@@ -28,6 +28,7 @@ public abstract class AWizardStep extends VerticalLayout {
   protected LinkedHashMap<PreliminaryOpenbisExperiment, List<ISampleBean>> samplesToRegister =
       new LinkedHashMap<>();
   protected String error = "Please fill in all necessary information.";
+  protected HorizontalLayout buttons;
 
   public void setNextStep(IWizardStep w) {
     next = w;
@@ -58,13 +59,11 @@ public abstract class AWizardStep extends VerticalLayout {
       }
     }
 
-    HorizontalLayout buttons = new HorizontalLayout();
+    buttons = new HorizontalLayout();
     buttons.setSpacing(true);
     buttons.addComponent(cancel);
 
-    // TODO add notification before removing?
     cancel.addClickListener(new Button.ClickListener() {
-
       @Override
       public void buttonClick(ClickEvent event) {
         createCancelWarningDialogue();
@@ -103,11 +102,7 @@ public abstract class AWizardStep extends VerticalLayout {
 
       @Override
       public void buttonClick(ClickEvent event) {
-        Component target = tabs.getTab(0).getComponent();
-        String caption = tabs.getTab(0).getCaption();
-
-        tabs.removeAllComponents();
-        tabs.addTab(target, caption);
+        goToFirstTab();
         subWindow.close();
       }
     });
@@ -134,9 +129,19 @@ public abstract class AWizardStep extends VerticalLayout {
     ui.addWindow(subWindow);
   }
 
+  protected void goToFirstTab() {
+    Component target = tabs.getTab(0).getComponent();
+    String caption = tabs.getTab(0).getCaption();
+
+    tabs.removeAllComponents();
+    tabs.addTab(target, caption);
+  }
+
   protected abstract boolean isValid();
 
   public void setTabs(TabSheet tabs) {
     this.tabs = tabs;
   }
+
+
 }

@@ -327,6 +327,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
       downloadTSV.setEnabled(true);
       downloadTSV.setVisible(true);
+      finish.setEnabled(true);
     } else {
       String feedback = "Sample registration could not be completed. Reason: " + errors;
       logger.error(feedback);

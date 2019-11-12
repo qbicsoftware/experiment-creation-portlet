@@ -41,6 +41,7 @@ public class RegistrationView extends ARegistrationView implements IWizardStep {
       Styles.notification("Registration complete!", "Registration of samples complete.",
           NotificationType.SUCCESS);
       register.setEnabled(false);
+      finish.setEnabled(true);
     } else {
       String feedback = "Sample registration could not be completed. Reason: " + errors;
       logger.error(feedback);

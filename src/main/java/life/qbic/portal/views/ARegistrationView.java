@@ -25,6 +25,7 @@ public abstract class ARegistrationView extends AWizardStep {
   protected Label registerInfo;
   protected ProgressBar bar;
   protected Button downloadTSV;
+  protected Button finish;
   private PreRegistrationTaskAdapter preRegTaskManager;
   private IOpenbisCreationController controller;
   protected OpenbisV3ReadController readController;
@@ -36,6 +37,8 @@ public abstract class ARegistrationView extends AWizardStep {
 
     preRegTaskManager = new PreRegistrationTaskAdapter(readController);
     preRegTaskManager.setProject(space, project);
+    finish = new Button("Finish");
+    finish.setEnabled(false);
   }
 
   private void initListeners() {
@@ -55,6 +58,14 @@ public abstract class ARegistrationView extends AWizardStep {
         controller.registerProjectWithExperimentsAndSamplesBatchWise(samples,
             "project description placeholder", samplesToRegister.keySet(), bar, registerInfo,
             new RegisteredToOpenbisReadyRunnable(view), new HashMap<>(), false);
+      }
+    });
+
+    finish.addClickListener(new Button.ClickListener() {
+
+      @Override
+      public void buttonClick(ClickEvent event) {
+        goToFirstTab();
       }
     });
   }
@@ -126,6 +137,7 @@ public abstract class ARegistrationView extends AWizardStep {
   public void showRegistrationProgress() {
     bar.setVisible(true);
     registerInfo.setVisible(true);
+    buttons.addComponent(finish);
   }
 
   public abstract void registrationDone(String errors);

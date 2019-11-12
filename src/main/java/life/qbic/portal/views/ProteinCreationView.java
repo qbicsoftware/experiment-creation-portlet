@@ -104,7 +104,7 @@ public class ProteinCreationView extends AWizardStep implements IWizardStep {
     Map<String, Object> proteinExpProps = new HashMap<>();
     String biologic = (String) cultureExperiment.getMetadata().get("Q_ADDITIONAL_INFO");
     proteinExpProps.put("Q_SECONDARY_NAME",
-        "Preparation of biologic " + biologic);
+        "Biologic " + biologic);
     PreliminaryOpenbisExperiment proteinExp =
         new PreliminaryOpenbisExperiment(ExperimentType.Q_SAMPLE_PREPARATION, proteinExpProps);
 

@@ -11,6 +11,7 @@ import com.vaadin.data.util.converter.StringToIntegerConverter;
 import com.vaadin.data.validator.IntegerRangeValidator;
 import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.Table;
+import com.vaadin.ui.TextArea;
 import com.vaadin.ui.TextField;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import life.qbic.datamodel.experiments.ExperimentType;
@@ -26,9 +27,11 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
   private Map<String, String> cellLines;
 
   private ComboBox cultureBox;
-  private TextField company;
-  private TextField biologicName;
+  // private TextField company;
+  // private TextField biologicName;
+  private TextField batchNum;
   private TextField proteinNum;
+  private TextArea freeTextInfo;
   private Table sampleInfos;
   private Sample speciesSample;
 
@@ -39,11 +42,13 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
     cultureBox = new ComboBox("Base Cell Culture", cellLines.keySet());
     cultureBox.setStyleName(Styles.boxTheme);
     cultureBox.setValue("CHO-K1 cell");
-    company = new TextField("Name of Company");
-    biologicName = new TextField("Name of Biologic");
+    batchNum = new TextField("Batch Number");
+    batchNum.setStyleName(Styles.fieldTheme);
+    // company = new TextField("Name of Company");
+    // biologicName = new TextField("Name of Biologic");
     proteinNum = new TextField("Number of Protein Samples");
-    company.setStyleName(Styles.fieldTheme);
-    biologicName.setStyleName(Styles.fieldTheme);
+    // company.setStyleName(Styles.fieldTheme);
+    // biologicName.setStyleName(Styles.fieldTheme);
     proteinNum.setStyleName(Styles.fieldTheme);
 
     proteinNum.setRequired(true);
@@ -51,14 +56,20 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
     proteinNum
         .addValidator(new IntegerRangeValidator("Must be a number between 1 and 100.", 1, 100));
 
-    addComponent(cultureBox);
-    addComponent(company);
-    addComponent(biologicName);
-    addComponent(proteinNum);
+    freeTextInfo = new TextArea("Additional Preparation Information");
 
-    sampleInfos = new Table("Sample Information");
+    addComponent(cultureBox);
+    // addComponent(company);
+    // addComponent(biologicName);
+    addComponent(batchNum);
+    addComponent(proteinNum);
+    addComponent(freeTextInfo);
+
+    sampleInfos = new Table("Sample Information (optional)");
     sampleInfos.setStyleName(Styles.tableTheme);
     sampleInfos.addContainerProperty("Name", TextField.class, null);
+    sampleInfos.addContainerProperty("Pretreatment", TextField.class, null);
+    sampleInfos.addContainerProperty("Dilution", TextField.class, null);
     sampleInfos.addContainerProperty("Description", TextField.class, null);
     sampleInfos.setVisible(false);
 
@@ -83,7 +94,12 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
   }
 
   private String parseTextFieldValue(String colname, Object id) {
-    return ((TextField) sampleInfos.getItem(id).getItemProperty(colname).getValue()).getValue();
+    String val =
+        ((TextField) sampleInfos.getItem(id).getItemProperty(colname).getValue()).getValue();
+    if (val == null) {
+      val = "";
+    }
+    return val;
   }
 
   public void initTable(int numOfSamples) {
@@ -94,9 +110,17 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
 
 
       TextField extIDField = new StandardTextField();
-      extIDField.setWidth("95px");
+      // extIDField.setWidth("95px");
       extIDField.setImmediate(true);
       row.add(extIDField);
+
+      TextField treatmentField = new StandardTextField();
+      treatmentField.setImmediate(true);
+      row.add(treatmentField);
+
+      TextField dilutionField = new StandardTextField();
+      dilutionField.setImmediate(true);
+      row.add(dilutionField);
 
       TextField secNameField = new StandardTextField();
       secNameField.setImmediate(true);
@@ -116,14 +140,15 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
 
   private void addExperimentsAndSamples() {
     Map<String, Object> cultureExpProps = new HashMap<>();
-    String cultureName = "Representative for cell culture";
-    if (!company.getValue().isEmpty()) {
-      cultureName += " at " + company.getValue();
-    }
-    cultureExpProps.put("Q_SECONDARY_NAME", cultureName);
-    cultureExpProps.put("Q_ADDITIONAL_INFO", biologicName.getValue());
     Map<String, Object> proteinExpProps = new HashMap<>();
-    proteinExpProps.put("Q_SECONDARY_NAME", "Preparation of biologic " + biologicName.getValue());
+    String cultureName = "Cell culture";
+    // if (!company.getValue().isEmpty()) {
+    // cultureName += " at " + company.getValue();
+    // }
+    cultureExpProps.put("Q_SECONDARY_NAME", cultureName);
+    proteinExpProps.put("Q_ADDITIONAL_INFO", freeTextInfo.getValue());
+    proteinExpProps.put("Q_SECONDARY_NAME", "Batch " + batchNum.getValue());
+
     PreliminaryOpenbisExperiment cultureExp =
         new PreliminaryOpenbisExperiment(ExperimentType.Q_SAMPLE_EXTRACTION, cultureExpProps);
     PreliminaryOpenbisExperiment proteinExp =
@@ -132,7 +157,7 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
     HashMap<String, Object> cultureProps = new HashMap<>();
     String cellLine = (String) cultureBox.getValue();
     cultureProps.put("Q_PRIMARY_TISSUE", "CELL_LINE");
-    cultureProps.put("Q_TISSUE_DETAILED", cellLines.get(cellLine));// TODO does this make sense?
+    cultureProps.put("Q_TISSUE_DETAILED", cellLines.get(cellLine));
     TSVSampleBean cultureSample = new TSVSampleBean("c", SampleType.Q_BIOLOGICAL_SAMPLE,
         "representative culture sample", cultureProps);
     cultureSample.addParentID(speciesSample.getCode());
@@ -142,17 +167,18 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
 
     for (Object id : sampleInfos.getItemIds()) {
       Map<String, Object> props = new HashMap<>();
-      String secName = parseTextFieldValue("Description", id);
-      if (secName == null)
-        secName = "";
-
+      String info = parseTextFieldValue("Description", id);
       String extID = parseTextFieldValue("Name", id);
-      if (extID == null)
-        extID = "";
+      String dilution = parseTextFieldValue("Dilution", id);
+      String pretreat = parseTextFieldValue("Pretreatment", id);
 
       props.put("Q_EXTERNALDB_ID", extID);
+      props.put("Q_PRE_TREATMENT", pretreat);
       props.put("Q_SAMPLE_TYPE", "PROTEINS");
-      TSVSampleBean s = new TSVSampleBean(id.toString(), SampleType.Q_TEST_SAMPLE, secName, props);
+      props.put("Q_ADDITIONAL_INFO", info);
+      // TODO
+//      props.put("Q_DILUTION", dilution);
+      TSVSampleBean s = new TSVSampleBean(id.toString(), SampleType.Q_TEST_SAMPLE, dilution, props);
       s.addParentID(cultureSample.getCode());
       samples.add(s);
     }
@@ -166,8 +192,8 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
 
   @Override
   public boolean isValid() {
-    return cultureBox.isValid() && proteinNum.isValid() && company.isValid()
-        && biologicName.isValid();
+    return cultureBox.isValid() && proteinNum.isValid() && batchNum.isValid()
+        && freeTextInfo.isValid();
   }
 
 }
