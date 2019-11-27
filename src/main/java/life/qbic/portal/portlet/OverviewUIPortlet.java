@@ -1,15 +1,26 @@
 package life.qbic.portal.portlet;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.xml.bind.JAXBException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.exception.SystemException;
+import com.liferay.portal.kernel.util.PropsKeys;
+import com.liferay.portal.kernel.util.PropsUtil;
+import com.liferay.portal.model.Company;
+import com.liferay.portal.model.User;
+import com.liferay.portal.service.CompanyLocalServiceUtil;
+import com.liferay.portal.service.UserLocalServiceUtil;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.data.Property.ValueChangeEvent;
@@ -27,6 +38,7 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.Layout;
 import com.vaadin.ui.TabSheet;
 import com.vaadin.ui.Table;
+import com.vaadin.ui.TextArea;
 import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
@@ -34,7 +46,6 @@ import com.vaadin.ui.Window;
 import com.vaadin.ui.themes.ValoTheme;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import life.qbic.datamodel.experiments.ExperimentType;
-import life.qbic.datamodel.experiments.OpenbisExperiment;
 import life.qbic.datamodel.identifiers.ExperimentCodeFunctions;
 import life.qbic.datamodel.samples.SampleType;
 import life.qbic.openbis.openbisclient.IOpenBisClient;
@@ -43,20 +54,24 @@ import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
 import life.qbic.portal.model.ExperimentTemplate;
 import life.qbic.portal.model.ExtendedOpenbisExperiment;
+import life.qbic.portal.steps.IWizardStep;
+import life.qbic.portal.steps.views.BiologicsCultureCreationView;
+import life.qbic.portal.steps.views.BottomUpMSView;
+import life.qbic.portal.steps.views.DeglycosylationView;
+import life.qbic.portal.steps.views.RegistrationView;
+import life.qbic.portal.steps.views.TopDownMSView;
 import life.qbic.portal.utils.ConfigurationManager;
 import life.qbic.portal.utils.ConfigurationManagerFactory;
 import life.qbic.portal.utils.PortalUtils;
-import life.qbic.portal.views.BiologicsCultureCreationView;
-import life.qbic.portal.views.BottomUpMSView;
-import life.qbic.portal.views.DeglycosylationView;
-import life.qbic.portal.views.IWizardStep;
-import life.qbic.portal.views.RegistrationView;
-import life.qbic.portal.views.TopDownMSView;
+import life.qbic.portlet.components.AdminWindow;
+import life.qbic.portlet.components.SampleInfoComponent;
 import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3APIWrapper;
 import life.qbic.portlet.openbis.OpenbisV3CreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
+import life.qbic.xml.manager.HistoryReader;
+import life.qbic.xml.notes.Note;
 
 /**
  * Entry point for portlet experiment-creation-portlet. This class derives from
@@ -69,7 +84,7 @@ import life.qbic.portlet.openbis.OpenbisV3ReadController;
 @Widgetset("life.qbic.portal.portlet.AppWidgetSet")
 public class OverviewUIPortlet extends QBiCPortletUI {
 
-  public static boolean development = true;
+  public static boolean development = false;
   public static boolean v3Registration = false;
   private OpenbisV3APIWrapper v3;
   private IOpenbisCreationController creationController;
@@ -89,8 +104,8 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   private Map<String, String> projectNameToCode = new HashMap<>();
 
   private OpenbisV3ReadController readController;
-  // private ProjectInformationComponent projSelection;
   private ComboBox projectSelection;
+  private Button resultsButton;
 
   private Map<String, List<Sample>> experimentCodeToSamples;
   private Map<String, List<ExtendedOpenbisExperiment>> optionToExperiments;
@@ -158,15 +173,24 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     }
     // TODO remove project creation options, replace component
     // projSelection = new ProjectInformationComponent(spaces, new HashSet<>());
+
     projectSelection = new ComboBox();
     projectSelection.setCaption(PROJECT_CATEGORY_NAME);
     projectSelection.setFilteringMode(FilteringMode.CONTAINS);
     projectSelection.setImmediate(true);
     projectSelection.setStyleName(Styles.boxTheme);
 
+    resultsButton = new Button("Results");
+    resultsButton.setEnabled(false);
+
+    VerticalLayout left = new VerticalLayout();
+    left.setSpacing(true);
+    left.addComponent(projectSelection);
+    left.addComponent(resultsButton);
+
     HorizontalLayout topFilters = new HorizontalLayout();
     topFilters.setCaption("Select your Project or filter by Protein Barcode");
-    topFilters.addComponent(projectSelection);
+    topFilters.addComponent(left);
     topFilters.setSpacing(true);
 
     VerticalLayout barcodeFilter = new VerticalLayout();
@@ -174,7 +198,7 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     HorizontalLayout barcodeButtons = new HorizontalLayout();
     barcodeButtons.setSpacing(true);
     Button searchBarcode = new Button("Search");
-    Button resetBarcode = new Button("Reset Filter");
+    Button resetBarcode = new Button("Reset Filters");
 
     barcodeButtons.addComponent(searchBarcode);
     barcodeButtons.addComponent(resetBarcode);
@@ -193,14 +217,12 @@ public class OverviewUIPortlet extends QBiCPortletUI {
         if (val != null && !val.isEmpty()) {
           Sample s = readController.findSampleByCode(val);
           if (s != null) {
-            displayProteinInformation();
             String id = s.getExperiment().getIdentifier().getIdentifier();
 
             ExtendedOpenbisExperiment exp = readController.getExperimentWithSamplesByID(id, true);
             Set<ExperimentTemplate> options =
                 fillExperimentSampleMapsAndReturnOptions(Arrays.asList(exp));
             fillOptionTable(options);
-            addResultOptions();
           } else {
             Styles.notification("Sample not found.",
                 "No sample with this barcode was found in the system.", NotificationType.ERROR);
@@ -246,18 +268,21 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     expTable.addContainerProperty("Info", Button.class, null);
     contextLayout.addComponent(expTable);
 
-    expTable.addValueChangeListener(new ValueChangeListener() {
-
-      @Override
-      public void valueChange(ValueChangeEvent event) {
-        hideSingleSampleOptions();
-        displayProteinInformation();
-      }
-    });
+    // expTable.addValueChangeListener(new ValueChangeListener() {
+    //
+    // @Override
+    // public void valueChange(ValueChangeEvent event) {
+    // displayProteinInformation();
+    // }
+    // });
 
     addExperiment = new Button("Add Experiment");
     addExperiment.setEnabled(false);
     contextLayout.addComponent(addExperiment);
+    if (isAdmin) {
+      AdminWindow a = new AdminWindow(readController, creationController, dbm, A4B_SPACE);
+      contextLayout.addComponent(a.getStartButton());
+    }
 
     addExperiment.addClickListener(new Button.ClickListener() {
 
@@ -285,8 +310,10 @@ public class OverviewUIPortlet extends QBiCPortletUI {
           name = name.substring(0, 80) + "...";
         name += " (" + code + ")";
       }
-      projects.add(name);
-      projectNameToCode.put(name, code);
+      if (!name.isEmpty()) {
+        projects.add(name);
+        projectNameToCode.put(name, code);
+      }
     }
     projectSelection.addItems(projects);
 
@@ -315,8 +342,9 @@ public class OverviewUIPortlet extends QBiCPortletUI {
 
   private void fireProjectChange() {
     resetExperiments();
-    hideSingleSampleOptions();
-    if (projectSelection.getValue() != null) {
+    boolean projectSelected = projectSelection.getValue() != null;
+    resultsButton.setEnabled(projectSelected);
+    if (projectSelected) {
       // inputs to check
       String space = A4B_SPACE;
       String existingProject = projectSelection.getValue().toString();
@@ -325,28 +353,183 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       Set<ExperimentTemplate> options = new HashSet<>();
       if (projectCode != null && !projectCode.isEmpty()) {
 
-        options = fillExperimentSampleMapsAndReturnOptions(
-            readController.getExperimentsWithSamplesOfProject(projectCode, true));
+        List<ExtendedOpenbisExperiment> experiments =
+            readController.getExperimentsWithSamplesOfProject(projectCode, true);
+        options = fillExperimentSampleMapsAndReturnOptions(experiments);
 
         String designExpID = ExperimentCodeFunctions.getInfoExperimentID(space, projectCode);
-        // TODO
-        OpenbisExperiment expDesign = readController.getExperimentByID(designExpID);
+
+        for (ExtendedOpenbisExperiment e : experiments) {
+          if (designExpID.endsWith(e.getExperimentCode())) {
+            prepareResultsWindow(e.getSamples());
+          }
+          // TODO
+          // OpenbisExperiment expDesign = readController.getExperimentByID(designExpID);
+        }
+
       }
       fillOptionTable(options);
     }
 
   }
 
-  private void addResultOptions() {
-    // TODO Auto-generated method stub
+  private void prepareResultsWindow(List<Sample> projectSamples) {
+    if (projectSamples.size() != 1) {
+      LOG.error("incorrect amount of samples on project level found: " + projectSamples.size());
+    } else {
+      Sample s = projectSamples.get(0);
+      String notesXML = s.getProperties().get("Q_NOTES");
+      List<Note> notes = new ArrayList<Note>();
+
+      if (notesXML != null) {
+        try {
+          notes = HistoryReader.parseNotes(notesXML).getValue().getNote();
+        } catch (JAXBException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+      }
+      // TODO reference selected TP
+
+      Window subWindow = new Window(" Results");
+      subWindow.setWidth("450px");
+
+      VerticalLayout layout = new VerticalLayout();
+      layout.setSpacing(true);
+      layout.setMargin(true);
+
+      VerticalLayout comments = new VerticalLayout();
+      layout.addComponent(comments);
+      for (Note n : notes) {
+        showNewNote(comments, n);
+      }
+
+      TextArea t = new TextArea("Add Findings for this Therapeutic Protein");
+      t.setWidth("300px");
+      Button addResult = new Button("Add");
+      addResult.addClickListener(new Button.ClickListener() {
+
+        @Override
+        public void buttonClick(ClickEvent event) {
+          String comment = t.getValue();
+          if (!comment.isEmpty()) {
+            t.setValue("");
+            // use some date format
+            Date dNow = new Date();
+            SimpleDateFormat ft = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+            Note note = new Note();
+            note.setComment(comment);
+            note.setUsername(getUser());
+            note.setTime(ft.format(dNow));
+
+            showNewNote(comments, note);
+
+            Map<String, Object> params = new HashMap<String, Object>();
+            params.put("id", s.getIdentifier().getIdentifier());
+            params.put("user", note.getUsername());
+            params.put("comment", note.getComment());
+            params.put("time", note.getTime());
+            openbis.ingest("DSS1", "add-to-xml-note", params);
+          }
+        }
+      });
+
+      layout.addComponent(t);
+
+      Button ok = new Button("Close");
+      ok.addClickListener(new ClickListener() {
+
+        @Override
+        public void buttonClick(ClickEvent event) {
+          subWindow.close();
+        }
+      });
+      HorizontalLayout buttons = new HorizontalLayout();
+      buttons.setSpacing(true);
+      buttons.addComponent(addResult);
+      buttons.addComponent(ok);
+      layout.addComponent(buttons);
+
+      subWindow.setContent(layout);
+      // Center it in the browser window
+      subWindow.center();
+      subWindow.setModal(true);
+      subWindow.setIcon(FontAwesome.STAR);
+      subWindow.setResizable(false);
+
+
+      resultsButton.addClickListener(new Button.ClickListener() {
+
+        @Override
+        public void buttonClick(ClickEvent event) {
+          UI.getCurrent().addWindow(subWindow);
+        }
+      });
+    }
+
   }
 
-  private void displayProteinInformation() {
-    // TODO Auto-generated method stub
+  private void showNewNote(VerticalLayout comments, Note n) {
+    Label l = new Label();
+    l.setCaption(translateName(n.getUsername()) + " (" + translateTime(n.getTime()) + ")");
+    l.setValue(n.getComment());
+    comments.addComponent(l);
   }
 
-  private void hideSingleSampleOptions() {
-    // TODO Auto-generated method stub
+  private String translateName(String username) {
+    String res = username;
+    try {
+      res = getLiferayUser(username);
+    } catch (Exception e) {
+      LOG.warn("Caught " + e.toString()
+          + " trying to find full user name. Probably not running on liferay. Using username instead.");
+    }
+    if (res == null)
+      return username;
+    return res;
+  }
+
+  public String getLiferayUser(String userID) {
+    Company company = null;
+    long companyId = 1;
+    String userString = "";
+    try {
+      String webId = PropsUtil.get(PropsKeys.COMPANY_DEFAULT_WEB_ID);
+      company = CompanyLocalServiceUtil.getCompanyByWebId(webId);
+      companyId = company.getCompanyId();
+      LOG.debug(
+          String.format("Using webId %s and companyId %d to get Portal User", webId, companyId));
+    } catch (PortalException | SystemException e) {
+      LOG.error("liferay error, could not retrieve companyId. Trying default companyId, which is "
+          + companyId, e.getStackTrace());
+    }
+
+    User user = null;
+    try {
+      user = UserLocalServiceUtil.getUserByScreenName(companyId, userID);
+    } catch (PortalException | SystemException e) {
+    }
+
+    if (user == null) {
+      LOG.warn(String.format("Openbis user %s appears to not exist in Portal", userID));
+      userString = userID;
+    } else {
+      String fullname = user.getFullName();
+      String email = user.getEmailAddress();
+      userString += ("<a href=\"mailto:");
+      userString += (email);
+      userString += ("\" style=\"color: #0068AA; text-decoration: none\">");
+      userString += (fullname);
+      userString += ("</a>");
+    }
+    return userString;
+  }
+
+  private String translateTime(String time) {
+    String res = time.replace("T", " ");
+    res = res.split("\\.")[0];
+    return res;
   }
 
   private Set<ExperimentTemplate> fillExperimentSampleMapsAndReturnOptions(
@@ -358,15 +541,14 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     for (ExtendedOpenbisExperiment e : experiments) {
       if (e.getSamples().size() > 0) {
         experimentCodeToSamples.put(e.getExperimentCode(), e.getSamples());
-        for (ExperimentTemplate template : getPossibleTemplatesForExperimentType(e.getType(),
-            e.getSamples())) {
+        for (ExperimentTemplate template : getPossibleTemplatesForExperimentType(e.getType(), e)) {
           if (optionToExperiments.containsKey(template.getName())) {
             optionToExperiments.get(template.getName()).add(e);
           } else {
             optionToExperiments.put(template.getName(), new ArrayList<>(Arrays.asList(e)));
           }
         }
-        options.addAll(getPossibleTemplatesForExperimentType(e.getType(), e.getSamples()));
+        options.addAll(getPossibleTemplatesForExperimentType(e.getType(), e));
       }
     }
     return options;
@@ -384,64 +566,57 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       row.add(e.getRegistrationDateString());
       // row.add(e.getRegistrator());
       Button info = new Button();
-      info.setWidth("35");
-      info.setIcon(FontAwesome.CLIPBOARD);
-      info.addClickListener(new Button.ClickListener() {
-
-        @Override
-        public void buttonClick(ClickEvent event) {
-          createExperimentInfoTab(e);
-        }
-
-        private void createExperimentInfoTab(ExtendedOpenbisExperiment e) {
-          Window subWindow = new Window(" Protein Information");
-          subWindow.setWidth("400px");
-
-          VerticalLayout layout = new VerticalLayout();
-          layout.setSpacing(true);
-          layout.setMargin(true);
-          for (String key : e.getMetadata().keySet()) {
-            Label info = new Label();
-            info.setCaption(key);
-            info.setValue(e.getMetadata().get(key).toString());
-            layout.addComponent(info);
-          }
-          Table samples = new Table();
-          samples.addContainerProperty("Name", String.class, null);
-          samples.addContainerProperty("Description", String.class, null);
-
-          for (Sample s : e.getSamples()) {
-            System.out.println(s);
-//            {Q_SECONDARY_NAME=1:15, Q_PRE_TREATMENT=pretreated sample, Q_ADDITIONAL_INFO=this is sample 1, Q_SAMPLE_TYPE=PROTEINS, Q_EXTERNALDB_ID=sample 1}
-          }
-          samples.setPageLength(samples.size());
-          layout.addComponent(samples);
-          Button ok = new Button("Close");
-          ok.addClickListener(new ClickListener() {
-
-            @Override
-            public void buttonClick(ClickEvent event) {
-              subWindow.close();
-            }
-          });
-
-          layout.addComponent(ok);
-
-          subWindow.setContent(layout);
-          // Center it in the browser window
-          subWindow.center();
-          subWindow.setModal(true);
-          subWindow.setIcon(FontAwesome.BOLT);
-          subWindow.setResizable(false);
-          UI.getCurrent().addWindow(subWindow);;
-        }
-      });
+      info.setEnabled(false);
+      info.setVisible(false);
+      if (e.getType().equals(ExperimentType.Q_SAMPLE_PREPARATION)) {
+        info = createInfoButtonAndPopup(e);
+      }
       row.add(info);
+
       expTable.addItem(row.toArray(new Object[row.size()]), e);
       if (exps.size() == 1) {
         expTable.setValue(e);
       }
     }
+  }
+
+  private Button createInfoButtonAndPopup(ExtendedOpenbisExperiment e) {
+    Button info = new Button();
+    info.setWidth("35");
+    info.setIcon(FontAwesome.CLIPBOARD);
+
+    Map<String, String> propertyTranslation =
+        readController.getPropertiesOfExperimentType(e.getType());
+
+    info.addClickListener(new Button.ClickListener() {
+
+      @Override
+      public void buttonClick(ClickEvent event) {
+        createExperimentInfoWindow(e);
+      }
+
+      private void createExperimentInfoWindow(ExtendedOpenbisExperiment e) {
+        Window subWindow = new Window(" Protein Information");
+        subWindow.setWidth("600px");
+
+        SampleInfoComponent sc = new SampleInfoComponent(e, propertyTranslation);
+        sc.getCloseButton().addClickListener(new ClickListener() {
+
+          @Override
+          public void buttonClick(ClickEvent event) {
+            subWindow.close();
+          }
+        });
+        subWindow.setContent(sc);
+        // Center it in the browser window
+        subWindow.center();
+        subWindow.setModal(true);
+        subWindow.setIcon(FontAwesome.CLIPBOARD);
+        subWindow.setResizable(false);
+        UI.getCurrent().addWindow(subWindow);
+      }
+    });
+    return info;
   }
 
   protected void fillOptionTable(Set<ExperimentTemplate> options) {
@@ -455,6 +630,27 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       row.add(e.getDescription());
       optionsTable.addItem(row.toArray(new Object[row.size()]), e.getName());
     }
+    // styleTable(optionsTable);
+  }
+
+  private void styleTable(Table t) {
+    String base = "blue-hue";
+    List<String> styles = new ArrayList<String>();
+    for (int i = 1; i < 7; i++)
+      styles.add(base + Integer.toString(i));
+
+    // Set cell style generator
+    t.setCellStyleGenerator(new Table.CellStyleGenerator() {
+
+      @Override
+      public String getStyle(Table source, Object itemId, Object propertyId) {
+        if (itemId.equals("Add protein information")) {
+          return styles.get(5);
+        }
+        return styles.get(0);
+      }
+
+    });
   }
 
   protected void resetExperiments() {
@@ -463,7 +659,6 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   }
 
   private void experimentTemplateToWizardTabs(String option, ExtendedOpenbisExperiment exp) {
-    List<Sample> oldSamples = experimentCodeToSamples.get(exp.getExperimentCode());
 
     tabs.removeAllComponents();
     tabs.addTab(contextLayout, "Context");
@@ -473,9 +668,8 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     RegistrationView registrationView = new RegistrationView(readController, creationController,
         experimentCodeToSamples, space, projectCode);
     switch (option) {
-      case "Add new protein batch":
-        BiologicsCultureCreationView extracts =
-            new BiologicsCultureCreationView(oldSamples, cellLines);
+      case "Add protein information":
+        BiologicsCultureCreationView extracts = new BiologicsCultureCreationView(exp, cellLines);
         extracts.setNextStep(registrationView);
         tabs.addTab(extracts, "Biologics creation");
         tabs.addTab(registrationView, "Finish");
@@ -487,20 +681,20 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       // tabs.addTab(registrationView, "Finish");
       // break;
       case "Deglycosylation of proteins":
-        DeglycosylationView deglycView = new DeglycosylationView(oldSamples, readController,
-            creationController, space, projectCode);
+        DeglycosylationView deglycView =
+            new DeglycosylationView(exp, readController, creationController, space, projectCode);
         // deglycView.setNextStep(registrationView);
         tabs.addTab(deglycView, "Deglycosylation");
         break;
       case "Top-down proteomics":
         TopDownMSView topDownView =
-            new TopDownMSView(oldSamples, readController, creationController, space, projectCode);
+            new TopDownMSView(exp, readController, creationController, space, projectCode);
         // topDownView.setNextStep(registrationView);
         tabs.addTab(topDownView, "Top-down");
         break;
       case "Bottom-up proteomics":
         BottomUpMSView bottomUpView =
-            new BottomUpMSView(oldSamples, readController, creationController, space, projectCode);
+            new BottomUpMSView(exp, readController, creationController, space, projectCode);
         // bottomUpView.setNextStep(registrationView);
         tabs.addTab(bottomUpView, "Bottom-up");
         break;
@@ -566,10 +760,10 @@ public class OverviewUIPortlet extends QBiCPortletUI {
   }
 
   private List<ExperimentTemplate> getPossibleTemplatesForExperimentType(ExperimentType expType,
-      List<Sample> previousLevel) {
+      ExtendedOpenbisExperiment previousLevel) {
     List<ExperimentTemplate> templates = new ArrayList<>();
     // tissues + proteins
-    templates.add(new ExperimentTemplate("Add new protein batch",
+    templates.add(new ExperimentTemplate("Add protein information",
         "Add new samples for this biologic. (only UKE)", ExperimentType.Q_EXPERIMENTAL_DESIGN)
             .addFilter("Q_NCBI_ORGANISM", "10029"));
     // proteins
@@ -594,8 +788,8 @@ public class OverviewUIPortlet extends QBiCPortletUI {
     List<ExperimentTemplate> res = new ArrayList<>();
     for (ExperimentTemplate t : templates) {
       if (expType.equals(t.getParentExperimentType())) {
-        List<Sample> filteredByProp = filterByProperty(previousLevel, t.getFilterCode(),
-            new HashSet<String>(Arrays.asList(t.getFilterValue())));
+        List<Sample> filteredByProp = filterByProperty(previousLevel.getSamples(),
+            t.getFilterCode(), new HashSet<String>(Arrays.asList(t.getFilterValue())));
         List<Sample> filtered = filterByParentType(filteredByProp, t.getParentFilterType(), false);
         if (filtered.size() > 0) {
           res.add(t);

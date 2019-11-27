@@ -9,12 +9,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.common.search.SearchResult;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.experiment.Experiment;
+import ch.ethz.sis.openbis.generic.asapi.v3.dto.experiment.ExperimentType;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.person.Person;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.project.Project;
+import ch.ethz.sis.openbis.generic.asapi.v3.dto.property.PropertyAssignment;
+import ch.ethz.sis.openbis.generic.asapi.v3.dto.property.PropertyType;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.space.Space;
 import ch.ethz.sis.openbis.generic.asapi.v3.exceptions.NotFetchedException;
-import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.experiments.OpenbisExperiment;
 import life.qbic.portal.model.ExtendedOpenbisExperiment;
 
@@ -33,6 +35,24 @@ public class OpenbisV3ReadController {
     for (Space s : searchResults.getObjects()) {
       res.add(s.getCode());
     }
+    return res;
+  }
+
+  public Map<String, String> getPropertiesOfExperimentType(
+      life.qbic.datamodel.experiments.ExperimentType type) {
+    Map<String, String> res = new HashMap<>();
+    SearchResult<ExperimentType> searchResults = v3Wrapper.getExperimentTypeByCode(type.toString());
+    if (!searchResults.getObjects().isEmpty()) {
+      ExperimentType found = searchResults.getObjects().get(0);
+      List<PropertyAssignment> props = found.getPropertyAssignments();
+      for (PropertyAssignment prop : props) {
+        PropertyType t = prop.getPropertyType();
+        res.put(t.getCode(), t.getLabel());
+      }
+      return res;
+    }
+    logger.error("Property types for experiment type " + type.toString()
+        + " could not be fetched, because experiment type could not be found.");
     return res;
   }
 
@@ -89,7 +109,7 @@ public class OpenbisV3ReadController {
     }
     String type = e.getType().getCode();
     try {
-      ExperimentType.valueOf(type);
+      life.qbic.datamodel.experiments.ExperimentType.valueOf(type);
     } catch (IllegalArgumentException ex) {
       logger.warn(type
           + " experiment type is unknown. Consider adding it to the data model. Ignoring this experiment.");
@@ -102,10 +122,12 @@ public class OpenbisV3ReadController {
       if (person.isEmpty()) {
         person = registrator.getUserId();
       }
-      return new ExtendedOpenbisExperiment(e.getCode(), ExperimentType.valueOf(type), props,
-          e.getSamples(), e.getRegistrationDate(), person);
+      return new ExtendedOpenbisExperiment(e.getCode(),
+          life.qbic.datamodel.experiments.ExperimentType.valueOf(type), props, e.getSamples(),
+          e.getRegistrationDate(), person);
     } catch (NotFetchedException ex) {
-      return new OpenbisExperiment(e.getCode(), ExperimentType.valueOf(type), props);
+      return new OpenbisExperiment(e.getCode(),
+          life.qbic.datamodel.experiments.ExperimentType.valueOf(type), props);
     }
   }
 
