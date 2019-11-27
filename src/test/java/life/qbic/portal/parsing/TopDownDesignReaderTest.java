@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 import org.junit.Test;
 import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.samples.ISampleBean;
@@ -38,8 +37,6 @@ public class TopDownDesignReaderTest {
     assertEquals(3, beans.get(1).size());
     assertEquals(SampleType.Q_TEST_SAMPLE, beans.get(0).get(0).getType());
     assertEquals(SampleType.Q_MS_RUN, beans.get(1).get(0).getType());
-    p.getSpecialExperimentsOfType(ExperimentType.Q_SAMPLE_PREPARATION);
-    p.getSpecialExperimentsOfType(ExperimentType.Q_MS_MEASUREMENT);
 
   }
 

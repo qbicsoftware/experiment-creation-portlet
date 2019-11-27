@@ -321,4 +321,8 @@ public class SamplePreparator {
     return experimentalDesignXML;
   }
 
+  public Map<String, List<String>> getParsedCategoriesToValues(List<String> header) {
+    return reader.getParsedCategoriesToValues(header);
+  }
+
 }

@@ -27,13 +27,14 @@ public class BottomUpDesignReader extends MSDesignReader {
   private static final Logger logger = LogManager.getLogger(BottomUpDesignReader.class);
 
   public BottomUpDesignReader() {
-    this.mandatoryColumns = new ArrayList<String>(
-        Arrays.asList("Digestion", "Preparation Date", "MS Run Date", "File Name", "MS Device",
-            "Protein Barcode", "Enrichment/Fractionation Type", "Fraction Name"));
-    this.mandatoryFilled = new ArrayList<String>(Arrays.asList("Digestion", "MS Device",
-        "Preparation Date", "MS Run Date", "File Name", "Protein Barcode"));
-    this.optionalCols =
-        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment", "Labeling Type", "Label"));
+    this.mandatoryColumns =
+        new ArrayList<String>(Arrays.asList("Digestion", "Preparation Date", "MS Run Date",
+            "File Name", "MS Device", "Protein Barcode", "Fractionation Type", "Fraction Name"));
+    this.mandatoryFilled =
+        new ArrayList<String>(Arrays.asList("Digestion", "Sample Cleanup", "MS Device",
+            "Preparation Date", "MS Run Date", "File Name", "Protein Barcode", "LC Column"));
+    this.optionalCols = new ArrayList<String>(
+        Arrays.asList("Enrichment", "LCMS Method", "Comment", "Labeling Type", "Pooling Label"));
 
     headersToTypeCodePerSampletype = new HashMap<>();
     headersToTypeCodePerSampletype.put(SampleType.Q_TEST_SAMPLE, new HashMap<>());
@@ -62,7 +63,7 @@ public class BottomUpDesignReader extends MSDesignReader {
    * @throws IOException
    */
   public List<ISampleBean> readSamples(File file, boolean parseGraph) throws IOException {
-    tsvByRows = new ArrayList<String>();
+    super.initReader();
 
     BufferedReader reader = new BufferedReader(new FileReader(file));
     ArrayList<String[]> data = new ArrayList<String[]>();
@@ -94,6 +95,7 @@ public class BottomUpDesignReader extends MSDesignReader {
     int numOfLevels = 3;
 
     ArrayList<String> found = new ArrayList<String>(Arrays.asList(header));
+    mandatoryColumns.addAll(mandatoryFilled);
     for (String col : mandatoryColumns) {
       if (!found.contains(col)) {
         error = "Mandatory column " + col + " not found.";
@@ -117,6 +119,7 @@ public class BottomUpDesignReader extends MSDesignReader {
     Map<String, TSVSampleBean> prepKeyToSample = new HashMap<>();
     Map<SamplePreparationRun, Map<String, Object>> expIDToFracExp = new HashMap<>();
     Map<MSRunCollection, Map<String, Object>> msIDToMSExp = new HashMap<>();
+    Map<String, TSVSampleBean> fileToMSRun = new HashMap<>();
 
     int rowID = 0;
     int sampleID = 0;
@@ -134,18 +137,30 @@ public class BottomUpDesignReader extends MSDesignReader {
         String prepDate = row[headerMapping.get("Preparation Date")];
         // String ligandExtrID = sourceID + "-" + tissue + "-" + prepDate + "-" + antibody;
         String msRunDate = row[headerMapping.get("MS Run Date")];
+        String msDevice = row[headerMapping.get("MS Device")];
+        String lcCol = row[headerMapping.get("LC Column")];
         String fName = row[headerMapping.get("File Name")];
+        String cleanup = row[headerMapping.get("Sample Cleanup")];
 
         String proteinParent = row[headerMapping.get("Protein Barcode")];
+        String comment = "";
+        if (headerMapping.containsKey("Comment")) {
+          comment = row[headerMapping.get("Comment")];
+        }
 
         String fracType = "";
         String fracName = "";
+        String poolLabel = "";
         String enzymesString = row[headerMapping.get("Digestion")];
         Set<String> enzymes = parseDigestionEnzymes(enzymesString);
-        if (headerMapping.containsKey("Enrichment/Fractionation Type")) {
-          fracType = row[headerMapping.get("Enrichment/Fractionation Type")];
+        if (headerMapping.containsKey("Fractionation Type")) {
+          fracType = row[headerMapping.get("Fractionation Type")];
           fracName = row[headerMapping.get("Fraction Name")];
         }
+        if (headerMapping.containsKey("Pooling Label")) {
+          poolLabel = row[headerMapping.get("Pooling Label")];
+        }
+        fillParsedCategoriesToValuesForRow(headerMapping, row);
 
         while (order.size() < numOfLevels) {
           order.add(new ArrayList<ISampleBean>());
@@ -161,12 +176,16 @@ public class BottomUpDesignReader extends MSDesignReader {
         // digestion of proteins is taken as a second criteria for new experiments: different
         // digestion types need new samples + experiments
         SamplePreparationRun samplePrepRun = null;
-        String prepID = proteinParent + " digest ";
+        String prepID = proteinParent + " digest";
         if (!fracName.isEmpty()) {
           prepID = fracType + "_" + fracName + "_" + prepID;
         }
-        prepID = prepID + enzymesString;
-        samplePrepRun = new SamplePreparationRun(proteinParent, prepDate, enzymes, fracType);
+        if (!poolLabel.isEmpty()) {
+          prepID = prepID + " " + poolLabel;
+        }
+        prepID = prepID + " " + enzymesString;
+        samplePrepRun =
+            new SamplePreparationRun(proteinParent, prepDate, enzymes, fracType, cleanup);
         TSVSampleBean prepSample = prepKeyToSample.get(prepID);
         if (prepSample == null) {
           sampleID++;
@@ -187,8 +206,8 @@ public class BottomUpDesignReader extends MSDesignReader {
           if (samplePrepExpMetadata == null) {
             Map<String, Object> metadata = new HashMap<>();
             addFractionationOrEnrichmentToMetadata(metadata, fracType);
-//            metadata.put("Q_FRACTIONATION_TYPE", fracType);
-//            metadata.put("Q_DIGESTION_ENZYMES", enzymesString);
+            // metadata.put("Q_FRACTIONATION_TYPE", fracType);
+            // metadata.put("Q_DIGESTION_ENZYMES", enzymesString);
             expIDToFracExp.put(samplePrepRun,
                 parsePrepExperimentData(row, headerMapping, metadata));
           } else
@@ -197,18 +216,28 @@ public class BottomUpDesignReader extends MSDesignReader {
         } else {
           proteinParent = prepSample.getCode();
         }
-        sampleID++;
-        TSVSampleBean msRun = new TSVSampleBean(Integer.toString(sampleID), SampleType.Q_MS_RUN, "",
-            fillMetadata(header, row, meta, factors, loci, SampleType.Q_MS_RUN));
-        MSRunCollection msRuns = new MSRunCollection(samplePrepRun, msRunDate);
-        msRun.setExperiment(Integer.toString(msRuns.hashCode()));
-        Map<String, Object> msExperiment = msIDToMSExp.get(msRuns);
-        if (msExperiment == null)
-          msIDToMSExp.put(msRuns, parseMSExperimentData(row, headerMapping, new HashMap<>()));
-        msRun.addParentID(proteinParent);
-        msRun.addProperty("File", fName);
-
-        order.get(1).add(msRun);
+        // file is known, this sample is pooled --> ms run has at least two parent samples
+        if (fileToMSRun.containsKey(fName)) {
+          TSVSampleBean msRun = fileToMSRun.get(fName);
+          msRun.addParentID(proteinParent);
+        } else {
+          // unknown file --> new ms run
+          sampleID++;
+          TSVSampleBean msRun = new TSVSampleBean(Integer.toString(sampleID), SampleType.Q_MS_RUN,
+              "", fillMetadata(header, row, meta, factors, loci, SampleType.Q_MS_RUN));
+          MSRunCollection msRuns = new MSRunCollection(samplePrepRun, msRunDate, msDevice, lcCol);
+          msRun.setExperiment(Integer.toString(msRuns.hashCode()));
+          Map<String, Object> msExperiment = msIDToMSExp.get(msRuns);
+          if (msExperiment == null)
+            msIDToMSExp.put(msRuns, parseMSExperimentData(row, headerMapping, new HashMap<>()));
+          msRun.addParentID(proteinParent);
+          msRun.addProperty("File", fName);
+          if (!comment.isEmpty()) {
+            msRun.addProperty("Q_ADDITIONAL_INFO", comment);
+          }
+          fileToMSRun.put(fName, msRun);
+          order.get(1).add(msRun);
+        }
       }
     }
     experimentInfos = new HashMap<>();

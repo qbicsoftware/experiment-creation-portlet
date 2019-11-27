@@ -1,21 +1,23 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps.views;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.samples.ISampleBean;
+import life.qbic.portal.model.ExtendedOpenbisExperiment;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
 import life.qbic.portal.parsing.ExperimentalDesignType;
 import life.qbic.portal.parsing.SamplePreparator;
+import life.qbic.portal.steps.IWizardStep;
+import life.qbic.portal.steps.ImportRegisterView;
 import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 
 public class BottomUpMSView extends ImportRegisterView implements IWizardStep {
 
-  public BottomUpMSView(List<Sample> previousLevel, OpenbisV3ReadController readController,
+  public BottomUpMSView(ExtendedOpenbisExperiment previousLevel, OpenbisV3ReadController readController,
       IOpenbisCreationController controller, String space, String project) {
     super(ExperimentalDesignType.BottomUp, previousLevel, readController, controller, space,
         project);

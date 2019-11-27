@@ -16,28 +16,26 @@ public class SamplePreparationRun {
 
   private String sourceID;
   private String prepDate;
+  private String cleanup;
   private Set<String> digestionEnzymes;
   private String fractionationType;
 
-  public SamplePreparationRun(String proteinParent, String prepDate, String fracType) {
-    // super(proteinParent, "N/A", prepDate, fracType);
-    this.sourceID = proteinParent;
-    this.prepDate = prepDate;
-    this.fractionationType = fracType;
-    this.digestionEnzymes = new HashSet<>();
+  public SamplePreparationRun(String proteinParent, String prepDate, String fracType,
+      String cleanup) {
+    this(proteinParent, prepDate, new HashSet<>(), fracType, cleanup);
   }
 
   public SamplePreparationRun(String proteinParent, String prepDate, Set<String> enzymes,
-      String fracType) {
-    // super(proteinParent, "N/A", prepDate, fracType);
+      String fracType, String cleanup) {
     this.sourceID = proteinParent;
     this.prepDate = prepDate;
     this.fractionationType = fracType;
     this.digestionEnzymes = enzymes;
+    this.cleanup = cleanup;
   }
 
   @Override
-  public String toString() {
+  public String toString() {// TODO cleanup
     String res = sourceID + " (" + fractionationType + ") on " + prepDate + "\nUsed enzymes:";
     for (String e : digestionEnzymes) {
       res += "\n" + e;
@@ -53,6 +51,7 @@ public class SamplePreparationRun {
     result = prime * result + ((fractionationType == null) ? 0 : fractionationType.hashCode());
     result = prime * result + ((prepDate == null) ? 0 : prepDate.hashCode());
     result = prime * result + ((sourceID == null) ? 0 : sourceID.hashCode());
+    result = prime * result + ((cleanup == null) ? 0 : cleanup.hashCode());
     return result;
   }
 
@@ -84,6 +83,11 @@ public class SamplePreparationRun {
       if (other.sourceID != null)
         return false;
     } else if (!sourceID.equals(other.sourceID))
+      return false;
+    if (cleanup == null) {
+      if (other.cleanup != null)
+        return false;
+    } else if (!cleanup.equals(other.cleanup))
       return false;
     return true;
   }

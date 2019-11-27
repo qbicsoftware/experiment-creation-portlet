@@ -27,13 +27,12 @@ public class TopDownDesignReader extends MSDesignReader {
   private static final Logger logger = LogManager.getLogger(TopDownDesignReader.class);
 
   public TopDownDesignReader() {
-    this.mandatoryColumns =
-        new ArrayList<String>(Arrays.asList("Preparation Date", "MS Run Date", "File Name", "MS Device",
-            "Protein Barcode", "Enrichment/Fractionation Type", "Fraction Name"));
-    this.mandatoryFilled = new ArrayList<String>(
-        Arrays.asList("MS Device", "Preparation Date", "MS Run Date", "File Name", "Protein Barcode"));
-    this.optionalCols =
-        new ArrayList<String>(Arrays.asList("Chromatography Type", "LCMS Method", "Comment", "Labeling Type", "Label"));
+    this.mandatoryColumns = new ArrayList<String>(Arrays.asList("Preparation Date", "MS Run Date",
+        "File Name", "MS Device", "Protein Barcode", "Fractionation Type", "Fraction Name"));
+    this.mandatoryFilled = new ArrayList<String>(Arrays.asList("MS Device", "Preparation Date",
+        "MS Run Date", "File Name", "Protein Barcode", "Sample Cleanup", "LC Column"));
+    this.optionalCols = new ArrayList<String>(Arrays.asList("Enrichment", "LCMS Method", "Comment",
+        "Labeling Type", "Label", "Middle-Down"));
 
     headersToTypeCodePerSampletype = new HashMap<>();
     headersToTypeCodePerSampletype.put(SampleType.Q_TEST_SAMPLE, new HashMap<>());
@@ -50,7 +49,7 @@ public class TopDownDesignReader extends MSDesignReader {
    * @throws IOException
    */
   public List<ISampleBean> readSamples(File file, boolean parseGraph) throws IOException {
-    tsvByRows = new ArrayList<String>();
+    super.initReader();
 
     BufferedReader reader = new BufferedReader(new FileReader(file));
     ArrayList<String[]> data = new ArrayList<String[]>();
@@ -82,6 +81,7 @@ public class TopDownDesignReader extends MSDesignReader {
     int numOfLevels = 5;
 
     ArrayList<String> found = new ArrayList<String>(Arrays.asList(header));
+    mandatoryColumns.addAll(mandatoryFilled);
     for (String col : mandatoryColumns) {
       if (!found.contains(col)) {
         error = "Mandatory column " + col + " not found.";
@@ -122,14 +122,23 @@ public class TopDownDesignReader extends MSDesignReader {
         String prepDate = row[headerMapping.get("Preparation Date")];
         // String ligandExtrID = sourceID + "-" + tissue + "-" + prepDate + "-" + antibody;
         String msRunDate = row[headerMapping.get("MS Run Date")];
+        String msDevice = row[headerMapping.get("MS Device")];
+        String lcCol = row[headerMapping.get("LC Column")];
         String fName = row[headerMapping.get("File Name")];
 
         String proteinParent = row[headerMapping.get("Protein Barcode")];
-
+        String cleanup = row[headerMapping.get("Sample Cleanup")];
+        String comment = "";
+        if (headerMapping.containsKey("Comment")) {
+          comment = row[headerMapping.get("Comment")];
+        }
         String fracType = "";
         String fracName = "";
-        if (headerMapping.containsKey("Enrichment/Fractionation Type")) {
-          fracType = row[headerMapping.get("Enrichment/Fractionation Type")];
+        
+        fillParsedCategoriesToValuesForRow(headerMapping, row);
+        
+        if (headerMapping.containsKey("Fractionation Type")) {
+          fracType = row[headerMapping.get("Fractionation Type")];
           fracName = row[headerMapping.get("Fraction Name")];
         }
 
@@ -147,7 +156,7 @@ public class TopDownDesignReader extends MSDesignReader {
         SamplePreparationRun fracRun = null;
         if (!fracName.isEmpty()) {
           String fracID = proteinParent + "_" + fracType + "_" + fracName;
-          fracRun = new SamplePreparationRun(proteinParent, prepDate, fracType);
+          fracRun = new SamplePreparationRun(proteinParent, prepDate, fracType, cleanup);
           TSVSampleBean fracSample = analyteToSample.get(fracID);
           if (fracSample == null) {
             sampleID++;
@@ -168,7 +177,7 @@ public class TopDownDesignReader extends MSDesignReader {
             if (fracExperimentMetadata == null) {
               Map<String, Object> metadata = new HashMap<>();
               addFractionationOrEnrichmentToMetadata(metadata, fracType);
-//              metadata.put("Q_FRACTIONATION_TYPE", fracType);
+              // metadata.put("Q_FRACTIONATION_TYPE", fracType);
               expIDToFracExp.put(fracRun, parsePrepExperimentData(row, headerMapping, metadata));
             } else
               expIDToFracExp.put(fracRun,
@@ -180,13 +189,16 @@ public class TopDownDesignReader extends MSDesignReader {
         sampleID++;
         TSVSampleBean msRun = new TSVSampleBean(Integer.toString(sampleID), SampleType.Q_MS_RUN, "",
             fillMetadata(header, row, meta, factors, loci, SampleType.Q_MS_RUN));
-        MSRunCollection msRuns = new MSRunCollection(fracRun, msRunDate);
+        MSRunCollection msRuns = new MSRunCollection(fracRun, msRunDate, msDevice, lcCol);
         msRun.setExperiment(Integer.toString(msRuns.hashCode()));
         Map<String, Object> msExperiment = msIDToMSExp.get(msRuns);
         if (msExperiment == null)
           msIDToMSExp.put(msRuns, parseMSExperimentData(row, headerMapping, new HashMap<>()));
         msRun.addParentID(proteinParent);
         msRun.addProperty("File", fName);
+        if(!comment.isEmpty()) {
+        msRun.addProperty("Q_ADDITIONAL_INFO", comment);
+        }
 
         order.get(1).add(msRun);
       }

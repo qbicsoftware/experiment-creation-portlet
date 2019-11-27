@@ -21,8 +21,8 @@ public class BottomUpDesignReaderTest {
     BottomUpDesignReader r = new BottomUpDesignReader();
     File example = new File(getClass().getClassLoader().getResource(tsv).getFile());
     List<ISampleBean> samples = r.readSamples(example, false);
-    
-    assertEquals(10, samples.size());
+
+    assertEquals(9, samples.size());
     assertTrue(r.error == null || r.error.isEmpty());
   }
 
@@ -32,15 +32,15 @@ public class BottomUpDesignReaderTest {
     File example = new File(getClass().getClassLoader().getResource(tsv).getFile());
     SamplePreparator p = new SamplePreparator();
     p.processTSV(example, r, false);
-    
+
     List<List<ISampleBean>> beans = p.getProcessed();
+    System.out.println(beans);
     assertEquals(5, beans.get(0).size());
-    assertEquals(5, beans.get(1).size());
+    assertEquals(4, beans.get(1).size());
     assertEquals(SampleType.Q_TEST_SAMPLE, beans.get(0).get(0).getType());
     assertEquals(SampleType.Q_MS_RUN, beans.get(1).get(0).getType());
-    p.getSpecialExperimentsOfType(ExperimentType.Q_SAMPLE_PREPARATION);
-    p.getSpecialExperimentsOfType(ExperimentType.Q_MS_MEASUREMENT);
-    
+    System.out.println(p.getSpecialExperimentsOfType(ExperimentType.Q_SAMPLE_PREPARATION));
+    System.out.println(p.getSpecialExperimentsOfType(ExperimentType.Q_MS_MEASUREMENT));
     assertTrue(r.error == null || r.error.isEmpty());
   }
 

@@ -34,4 +34,6 @@ public interface IExperimentalDesignReader {
 
   List<TechnologyType> getTechnologyTypes();
 
+  Map<String, List<String>> getParsedCategoriesToValues(List<String> header);
+
 }

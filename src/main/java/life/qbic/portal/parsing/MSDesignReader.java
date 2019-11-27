@@ -27,12 +27,13 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
   protected List<String> mandatoryFilled;
   protected List<String> optionalCols;
   protected Map<SampleType, Map<String, String>> headersToTypeCodePerSampletype;
+  protected Map<String, Set<String>> parsedCategoriesToValues;
 
   protected String error;
   protected Map<ExperimentType, List<PreliminaryOpenbisExperiment>> experimentInfos;
   protected List<String> tsvByRows;
   private static final Logger logger = LogManager.getLogger(MSDesignReader.class);
-  private HashMap<String, Command> parsers;
+  private Map<String, Command> parsers;
   private final Set<String> deglycChems =
       new HashSet<>(Arrays.asList("pngase f", "hydrazine", "ceramidase"));
 
@@ -60,6 +61,32 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
         return parseLCMSMethod(value);
       }
     });
+  }
+
+  protected void fillParsedCategoriesToValuesForRow(Map<String, Integer> headerMapping,
+      String[] row) {
+    addValueForCategory(headerMapping, row, "MS Device");
+    addValueForCategory(headerMapping, row, "LC Column");
+    addValueForCategory(headerMapping, row, "Sample Cleanup");
+    addValueForCategory(headerMapping, row, "Fractionation Type");
+    addValueForCategory(headerMapping, row, "Enrichment");
+    addValueForCategory(headerMapping, row, "Labeling Type");
+    addValueForCategory(headerMapping, row, "Labeling/Derivitisation");
+  }
+
+  private void addValueForCategory(Map<String, Integer> headerMapping, String[] row, String cat) {
+    if (headerMapping.containsKey(cat)) {
+      String val = row[headerMapping.get(cat)];
+      if (val != null && !val.isEmpty()) {
+        if (parsedCategoriesToValues.containsKey(cat)) {
+          parsedCategoriesToValues.get(cat).add(val);
+        } else {
+          Set<String> set = new HashSet<String>();
+          set.add(val);
+          parsedCategoriesToValues.put(cat, set);
+        }
+      }
+    }
   }
 
   public static final String UTF8_BOM = "\uFEFF";
@@ -95,9 +122,9 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
   // TODO
   protected void addFractionationOrEnrichmentToMetadata(Map<String, Object> metadata,
       String fracType) {
-    if (!fracType.isEmpty()) {
-      metadata.put("Fractionation_Enrichment_Placeholder", fracType);
-    }
+    // if (!fracType.isEmpty()) {
+    // metadata.put("Fractionation_Enrichment_Placeholder", fracType);
+    // }
   }
 
   protected Set<String> parseDigestionEnzymes(String csEnzymes) {
@@ -110,14 +137,36 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
 
   protected Map<String, Object> parsePrepExperimentData(String[] row,
       Map<String, Integer> headerMapping, Map<String, Object> metadata) {
+    if (headerMapping.containsKey("Enrichment")) {
+      String val = row[headerMapping.get("Enrichment")];
+      if (!val.isEmpty()) {
+        metadata.put("Q_MS_ENRICHMENT_METHOD", val);
+      }
+    }
+    String val = row[headerMapping.get("Fractionation Type")];
+    if (!val.isEmpty()) {
+      metadata.put("Q_MS_FRACTIONATION_METHOD", val);
+    }
     String prepDate = row[headerMapping.get("Preparation Date")];
     if (!prepDate.isEmpty()) {
       metadata.put("Q_PREPARATION_DATE", parseDate(prepDate));
     }
-    if (headerMapping.get("Labeling Type") != null) {
+    if (headerMapping.containsKey("Labeling Type")) {
       String label = row[headerMapping.get("Labeling Type")];
       if (!label.isEmpty()) {
         metadata.put("Q_LABELING_METHOD", label);
+      }
+    }
+    if (headerMapping.containsKey("Labeling/Derivitisation")) {
+      String label = row[headerMapping.get("Labeling/Derivitisation")];
+      if (!label.isEmpty()) {
+        metadata.put("Q_LABELING_METHOD", label);
+      }
+    }
+    if (headerMapping.containsKey("Sample Cleanup")) {
+      val = row[headerMapping.get("Sample Cleanup")];
+      if (!val.isEmpty()) {
+        metadata.put("Q_MS_PURIFICATION_METHOD", val);
       }
     }
     if (headerMapping.get("Digestion") != null) {
@@ -135,8 +184,10 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
     designMap.put("MS Run Date", "Q_MEASUREMENT_FINISH_DATE");
     designMap.put("Share", "Q_EXTRACT_SHARE");
     designMap.put("MS Device", "Q_MS_DEVICE");
-    designMap.put("LCMS Method", "Q_MS_LCMS_METHOD");
-    designMap.put("MS Comment", "Q_ADDITIONAL_INFO");
+    designMap.put("LCMS Method", "Q_MS_LCMS_METHOD_INFO");
+    // designMap.put("Comment", "Q_ADDITIONAL_INFO");
+    designMap.put("LC Column", "Q_CHROMATOGRAPHY_TYPE");
+    designMap.put("Middle-Down", "Q_MS_MIDDLE_DOWN_INFORMATION");
     metadata.put("Q_CURRENT_STATUS", "FINISHED");
     for (String col : designMap.keySet()) {
       String val = "";
@@ -151,6 +202,7 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
         metadata.put(openbisType, val);
       }
     }
+    metadata.put("Q_MS_LCMS_METHOD", "SPECIAL_METHOD");
     return metadata;
   }
 
@@ -267,4 +319,21 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
     return null;
   }
 
+  @Override
+  public Map<String, List<String>> getParsedCategoriesToValues(List<String> header) {
+    Map<String, List<String>> res = new HashMap<>();
+    for (String cat : header) {
+      if (parsedCategoriesToValues.containsKey(cat)) {
+        res.put(cat, new ArrayList<>(parsedCategoriesToValues.get(cat)));
+      } else {
+        logger.warn(cat + " not found");
+      }
+    }
+    return res;
+  }
+
+  public void initReader() {
+    parsedCategoriesToValues = new HashMap<>();
+    tsvByRows = new ArrayList<String>();
+  }
 }
