@@ -1,4 +1,4 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps;
 
 import java.util.LinkedHashMap;
 import java.util.List;
