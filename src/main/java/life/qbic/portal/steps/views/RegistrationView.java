@@ -1,4 +1,4 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps.views;
 
 import java.util.List;
 import java.util.Map;
@@ -8,6 +8,8 @@ import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import life.qbic.datamodel.samples.ISampleBean;
 import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
+import life.qbic.portal.steps.ARegistrationView;
+import life.qbic.portal.steps.IWizardStep;
 import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.utils.TimeUtils;
@@ -29,8 +31,6 @@ public class RegistrationView extends ARegistrationView implements IWizardStep {
   public void activate() {
     super.activate();
     nextButton.setVisible(false);
-
-
     setSummaryAndEnableRegistration();
   }
 

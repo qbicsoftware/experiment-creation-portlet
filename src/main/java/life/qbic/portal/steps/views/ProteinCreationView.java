@@ -1,4 +1,4 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps.views;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,6 +19,8 @@ import life.qbic.portal.Styles;
 import life.qbic.portal.components.StandardTextField;
 import life.qbic.portal.model.ExtendedOpenbisExperiment;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
+import life.qbic.portal.steps.AWizardStep;
+import life.qbic.portal.steps.IWizardStep;
 
 public class ProteinCreationView extends AWizardStep implements IWizardStep {
 

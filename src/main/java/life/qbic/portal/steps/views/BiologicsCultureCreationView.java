@@ -1,4 +1,4 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps.views;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,7 +20,10 @@ import life.qbic.datamodel.samples.SampleType;
 import life.qbic.datamodel.samples.TSVSampleBean;
 import life.qbic.portal.Styles;
 import life.qbic.portal.components.StandardTextField;
+import life.qbic.portal.model.ExtendedOpenbisExperiment;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
+import life.qbic.portal.steps.AWizardStep;
+import life.qbic.portal.steps.IWizardStep;
 
 public class BiologicsCultureCreationView extends AWizardStep implements IWizardStep {
 
@@ -35,8 +38,8 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
   private Table sampleInfos;
   private Sample speciesSample;
 
-  public BiologicsCultureCreationView(List<Sample> previousLevel, Map<String, String> cellLines) {
-    speciesSample = previousLevel.get(0);
+  public BiologicsCultureCreationView(ExtendedOpenbisExperiment previousLevel, Map<String, String> cellLines) {
+    speciesSample = previousLevel.getSamples().get(0);
 
     this.cellLines = cellLines;
     cultureBox = new ComboBox("Base Cell Culture", cellLines.keySet());
