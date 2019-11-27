@@ -1,7 +1,8 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import com.vaadin.server.FileDownloader;
 import com.vaadin.ui.Button;
@@ -9,6 +10,8 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.ProgressBar;
 import com.vaadin.ui.Button.ClickEvent;
 import life.qbic.datamodel.samples.ISampleBean;
+import life.qbic.datamodel.samples.SampleType;
+import life.qbic.portal.model.PreliminaryOpenbisExperiment;
 import life.qbic.portal.utils.PortalUtils;
 import life.qbic.portlet.components.ExperimentSummaryTable;
 import life.qbic.portlet.openbis.IOpenbisCreationController;
@@ -20,7 +23,8 @@ public abstract class ARegistrationView extends AWizardStep {
 
   protected Button register;
   // private MissingInfoComponent questionaire;
-  protected ExperimentSummaryTable summary;
+  // protected ExperimentSummaryTable summary;
+  protected Label summaryLabel;
   // private Button preview;
   protected Label registerInfo;
   protected ProgressBar bar;
@@ -71,12 +75,15 @@ public abstract class ARegistrationView extends AWizardStep {
   }
 
   public boolean summaryIsSet() {
-    return (summary.size() > 0);
+    return !summaryLabel.getCaption().isEmpty();
+    // return (summary.size() > 0);
   }
 
   public void resetAfterUpload() {
-    summary.removeAllItems();
-    summary.setVisible(false);
+    summaryLabel.setCaption("");
+    summaryLabel.setVisible(false);
+    // summary.removeAllItems();
+    // summary.setVisible(false);
     registerInfo.setVisible(false);
     bar.setVisible(false);
     if (downloadTSV != null)
@@ -96,9 +103,36 @@ public abstract class ARegistrationView extends AWizardStep {
   protected abstract void prepareBarcodeDownload(List<List<ISampleBean>> samples);
 
   public void setSummaryAndEnableRegistration() {
-    summary.setSamples(samplesToRegister);
-    summary.setVisible(true);
+    // summary.setSamples(samplesToRegister);
+    // summary.setVisible(true);
+    summaryLabel.setCaption("Summary");
+    String info = getRegSummary(samplesToRegister);
+    summaryLabel.setValue(info);
+    summaryLabel.setVisible(true);
     setRegEnabled(true);
+  }
+
+  private String getRegSummary(
+      LinkedHashMap<PreliminaryOpenbisExperiment, List<ISampleBean>> samplesToRegister) {
+    int prot = 0;
+    int ms = 0;
+    for (PreliminaryOpenbisExperiment e : samplesToRegister.keySet()) {
+      int samples = samplesToRegister.get(e).size();
+      switch (e.getType()) {
+        case Q_SAMPLE_PREPARATION:
+          prot += samples;
+          break;
+        case Q_MS_MEASUREMENT:
+          ms += samples;
+        default:
+          break;
+      }
+    }
+    if (ms > 0) {
+      return ms + " mass spectrometry runs are ready to be registered.";
+    } else {
+      return prot + " protein samples are ready to be registered.";
+    }
   }
 
   public void setRegEnabled(boolean b) {
@@ -111,13 +145,14 @@ public abstract class ARegistrationView extends AWizardStep {
     // preview.setEnabled(false);
     // addComponent(preview);
 
-    // missing info input layout
-    // addComponent(questionaire);
-
     // summary of imported samples
-    summary = new ExperimentSummaryTable();
-    summary.setVisible(false);
-    addComponent(summary);
+    // summary = new ExperimentSummaryTable();
+    // summary.setVisible(false);
+    // addComponent(summary);
+
+    summaryLabel = new Label();
+    summaryLabel.setVisible(false);
+    addComponent(summaryLabel);
 
     // sample registration button
     register = new Button("Register All");
