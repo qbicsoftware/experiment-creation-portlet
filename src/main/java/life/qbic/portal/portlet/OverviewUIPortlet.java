@@ -3,6 +3,7 @@ package life.qbic.portal.portlet;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -310,10 +311,11 @@ public class OverviewUIPortlet extends QBiCPortletUI {
           name = name.substring(0, 80) + "...";
         name += " (" + code + ")";
       }
-      if (!name.isEmpty()) {
-        projects.add(name);
-        projectNameToCode.put(name, code);
+      if (name.isEmpty()) {
+        name = code;// TODO test
       }
+      projects.add(name);
+      projectNameToCode.put(name, code);
     }
     projectSelection.addItems(projects);
 
@@ -358,7 +360,6 @@ public class OverviewUIPortlet extends QBiCPortletUI {
         options = fillExperimentSampleMapsAndReturnOptions(experiments);
 
         String designExpID = ExperimentCodeFunctions.getInfoExperimentID(space, projectCode);
-
         for (ExtendedOpenbisExperiment e : experiments) {
           if (designExpID.endsWith(e.getExperimentCode())) {
             prepareResultsWindow(e.getSamples());
@@ -458,6 +459,11 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       subWindow.setIcon(FontAwesome.STAR);
       subWindow.setResizable(false);
 
+      Collection<ClickListener> oldListeners =
+          (Collection<ClickListener>) resultsButton.getListeners(ClickEvent.class);
+      for (ClickListener old : oldListeners) {
+        resultsButton.removeClickListener(old);
+      }
 
       resultsButton.addClickListener(new Button.ClickListener() {
 
