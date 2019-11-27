@@ -1,4 +1,4 @@
-package life.qbic.portal.views;
+package life.qbic.portal.steps;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,14 +19,21 @@ import javax.xml.bind.JAXBException;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.vaadin.data.Property.ValueChangeEvent;
+import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.server.FileDownloader;
 import com.vaadin.server.FileResource;
+import com.vaadin.server.FontAwesome;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.Upload;
 import com.vaadin.ui.VerticalLayout;
+import com.vaadin.ui.Window;
+import com.vaadin.ui.Button.ClickEvent;
+import com.vaadin.ui.Button.ClickListener;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
 import com.vaadin.ui.Upload.FinishedEvent;
 import com.vaadin.ui.Upload.FinishedListener;
@@ -36,6 +43,7 @@ import life.qbic.datamodel.samples.SampleType;
 import life.qbic.portal.Styles;
 import life.qbic.portal.Styles.NotificationType;
 import life.qbic.portal.components.Uploader;
+import life.qbic.portal.model.ExtendedOpenbisExperiment;
 import life.qbic.portal.model.PreliminaryOpenbisExperiment;
 import life.qbic.portal.model.SampleSummaryBean;
 import life.qbic.portal.parsing.ExperimentalDesignType;
@@ -43,6 +51,8 @@ import life.qbic.portal.parsing.IExperimentalDesignReader;
 import life.qbic.portal.parsing.SamplePreparator;
 import life.qbic.portal.parsing.VocabularyValidator;
 import life.qbic.portal.portlet.OverviewUIPortlet;
+import life.qbic.portlet.components.MissingInfoComponent;
+import life.qbic.portlet.components.SampleInfoComponent;
 import life.qbic.portlet.openbis.IOpenbisCreationController;
 import life.qbic.portlet.openbis.OpenbisV3ReadController;
 import life.qbic.utils.TimeUtils;
@@ -51,7 +61,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
   private VerticalLayout infos;
   private Upload upload;
-  // private MissingInfoComponent questionaire;
+  private MissingInfoComponent questionaire;
   private List<List<ISampleBean>> samples;
   private ExperimentalDesignType designType;
   private SamplePreparator preparator;
@@ -63,11 +73,11 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
   private static final Logger logger = LogManager.getLogger(ImportRegisterView.class);
 
-  public ImportRegisterView(ExperimentalDesignType type, List<Sample> previousLevel,
+  public ImportRegisterView(ExperimentalDesignType type, ExtendedOpenbisExperiment previousLevel,
       OpenbisV3ReadController readController, IOpenbisCreationController controller, String space,
       String project) {
     super(readController, controller, space, project);
-    barcodes = collectBarcodes(previousLevel);
+    barcodes = collectBarcodes(previousLevel.getSamples());
     designType = type;
 
     infos = new VerticalLayout();
@@ -80,6 +90,37 @@ public abstract class ImportRegisterView extends ARegistrationView {
     upload.setButtonCaption("Upload");
     initUploadListeners(uploader);
 
+    Button proteinInfo = new Button("Protein Information");
+
+    Map<String, String> propertyTranslation =
+        readController.getPropertiesOfExperimentType(previousLevel.getType());
+
+    proteinInfo.addClickListener(new Button.ClickListener() {
+
+      @Override
+      public void buttonClick(ClickEvent event) {
+        Window subWindow = new Window(" Protein Information");
+        subWindow.setWidth("600px");
+
+        SampleInfoComponent sc = new SampleInfoComponent(previousLevel, propertyTranslation);
+        sc.getCloseButton().addClickListener(new ClickListener() {
+
+          @Override
+          public void buttonClick(ClickEvent event) {
+            subWindow.close();
+          }
+        });
+        subWindow.setContent(sc);
+        // Center it in the browser window
+        subWindow.center();
+        subWindow.setModal(true);
+        subWindow.setIcon(FontAwesome.CLIPBOARD);
+        subWindow.setResizable(false);
+        UI.getCurrent().addWindow(subWindow);
+      }
+    });
+
+    addComponent(proteinInfo);
     HorizontalLayout optionsInfo = new HorizontalLayout();
     optionsInfo.addComponent(infos);
 
@@ -93,14 +134,14 @@ public abstract class ImportRegisterView extends ARegistrationView {
     // addComponent(preview);
 
     // missing info input layout
-    // addComponent(questionaire);
+    questionaire = new MissingInfoComponent();
+    addComponent(questionaire);
 
     super.initViewComponents();
 
     setMargin(true);
     setSpacing(true);
 
-    // this.questionaire = new MissingInfoComponent();
   }
 
   private List<String> collectBarcodes(List<Sample> samples) {
@@ -143,6 +184,14 @@ public abstract class ImportRegisterView extends ARegistrationView {
     return v;
   }
 
+  public static void main(String[] args) {
+    List<String> tests =
+        new ArrayList<>(Arrays.asList("xexample.rar", "example2.rar", "examplkjbnjasbda"));
+    for (String t : tests) {
+      System.out.println(t.replaceAll("example.*\\.rar", ""));
+    }
+  }
+
   private File createFileWithBarcodes(File example, List<String> barcodes) throws IOException {
     Path path = example.toPath();
     Charset charset = StandardCharsets.UTF_8;
@@ -155,11 +204,14 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
     String res = header + "\n";
     for (String barcode : barcodes) {
-      String line = content.replaceAll("example", barcode + "example")
-          .replaceAll("barcode_placeholder", barcode).trim();
+      // String line = content.replaceAll("example", barcode + "example");
+      String line = content.replaceAll("barcode_placeholder", barcode).trim();
       res += line + "\n";
     }
 
+    System.out.println(res);
+    res = res.replaceAll("example.*\\.rar", "");
+    System.out.println(res);
     String tmpPath = Paths.get(OverviewUIPortlet.tmpFolder,
         TimeUtils.getCurrentTimestampString() + path.getFileName()).toString();
 
@@ -250,6 +302,17 @@ public abstract class ImportRegisterView extends ARegistrationView {
               experimentTypeVocabularies.put("Q_DIGESTION_METHOD", enzymeMap.keySet());
               VocabularyValidator validator = new VocabularyValidator(experimentTypeVocabularies);
 
+              Map<String, Map<String, String>> catToVocabulary = new HashMap<>();
+
+
+              catToVocabulary.put("LC Column", chromTypes);
+              catToVocabulary.put("Sample Cleanup", purificationMethods);
+              catToVocabulary.put("MS Device", deviceMap);
+              catToVocabulary.put("Fractionation Type", fractionationTypes);
+              catToVocabulary.put("Enrichment", enrichmentTypes);
+              catToVocabulary.put("Labeling Type", labelingMethods);
+              catToVocabulary.put("Labeling/Derivitisation", labelingMethods);
+
               IExperimentalDesignReader reader = designType.getParser();
               boolean parseGraph = false;
 
@@ -269,11 +332,107 @@ public abstract class ImportRegisterView extends ARegistrationView {
                   metadataList.add(e.getProperties());
                 }
                 Map<String, Set<String>> pretransformedProperties = new HashMap<>();
-                pretransformedProperties.put("Fractionation_Enrichment_Placeholder", new HashSet<>(
-                    Arrays.asList("Q_MS_FRACTIONATION_METHOD", "Q_MS_ENRICHMENT_METHOD")));
+
+                // TODO
+                // pretransformedProperties.put("Fractionation_Enrichment_Placeholder", new
+                // HashSet<>(
+                // Arrays.asList("Q_MS_FRACTIONATION_METHOD", "Q_MS_ENRICHMENT_METHOD")));
 
                 vocabValid = validator.transformAndValidateExperimentMetadata(metadataList,
                     pretransformedProperties);
+                logger.debug(metadataList);
+
+                // TODO
+                vocabValid = true;
+                Map<String, List<String>> parsedCategoryToValues = preparator
+                    .getParsedCategoriesToValues(new ArrayList<String>(Arrays.asList("LC Column",
+                        "Sample Cleanup", "MS Device", "Fractionation Type", "Enrichment",
+                        "Labeling Type", "Labeling/Derivitisation")));
+
+                Map<String, Set<String>> keyToFields = new HashMap<>();
+                keyToFields.put("Q_MS_DEVICE", new HashSet<>(Arrays.asList("MS Device")));
+                keyToFields.put("Q_CHROMATOGRAPHY_TYPE", new HashSet<>(Arrays.asList("LC Column")));
+                keyToFields.put("Q_MS_ENRICHMENT_METHOD",
+                    new HashSet<>(Arrays.asList("Enrichment")));
+                keyToFields.put("Q_MS_PURIFICATION_METHOD",
+                    new HashSet<>(Arrays.asList("Sample Cleanup")));
+                keyToFields.put("Q_MS_FRACTIONATION_METHOD",
+                    new HashSet<>(Arrays.asList("Fractionation Type")));
+                keyToFields.put("Q_LABELING_METHOD",
+                    new HashSet<>(Arrays.asList("Labeling Type", "Labeling/Derivitisation")));
+                ValueChangeListener missingInfoFilledListener = new ValueChangeListener() {
+
+                  @Override
+                  public void valueChange(ValueChangeEvent event) {
+                    boolean infoComplete = questionaire.isValid();
+
+                    if (infoComplete) {
+                      for (Map<String, Object> props : metadataList) {
+                        for (String key : props.keySet()) {
+                          if (keyToFields.containsKey(key)) {
+                            for (String val : keyToFields.get(key)) {
+                              String entry = (String) props.get(key);
+                              String newVal = questionaire.getVocabularyCodeForValue(val, entry);
+                              if (newVal != null) {
+                                props.put(key, newVal);// TODO test
+                              }
+                            }
+                          }
+                        }
+                      }
+                      logger.debug("after replacement:");
+                      logger.debug(metadataList);
+                    }
+                  }
+                };
+
+
+                questionaire.init(parsedCategoryToValues, catToVocabulary,
+                    missingInfoFilledListener);
+
+                // for (ISampleBean b : level) {
+                // TSVSampleBean t = (TSVSampleBean) b;
+                //
+                // String extID = (String) t.getMetadata().get("Q_EXTERNALDB_ID");
+                //
+                // if (extIDToSample.containsKey(extID)) {
+                // existing.add(t);
+                // extCodeToBarcode.put(extID, extIDToSample.get(extID).getCode());
+                // } else {
+                // t.setProject(project);
+                // t.setSpace(space);
+                // String code = "";
+                // Map<String, Object> props = t.getMetadata();
+                // switch (t.getType()) {
+                // case Q_BIOLOGICAL_ENTITY:
+                // code = project + "ENTITY-" + entityNum;
+                // String newVal = questionaire.getVocabularyLabelForValue("Species",
+                // props.get("Q_NCBI_ORGANISM"));
+                // props.put("Q_NCBI_ORGANISM", taxMap.get(newVal));
+                // entityNum++;
+                // break;
+                // case Q_BIOLOGICAL_SAMPLE:
+                // try {
+                // incrementOrCreateBarcode(project);
+                // } catch (TooManySamplesException e) {
+                // overflow = true;
+                // }
+                // code = nextBarcode;
+                // newVal = questionaire.getVocabularyLabelForValue("Tissues",
+                // props.get("Q_PRIMARY_TISSUE"));
+                // props.put("Q_PRIMARY_TISSUE", tissueMap.get(newVal));
+                // break;
+                // case Q_TEST_SAMPLE:
+                // try {
+                // incrementOrCreateBarcode(project);
+                // } catch (TooManySamplesException e) {
+                // overflow = true;
+                // }
+                // code = nextBarcode;
+                // newVal = questionaire.getVocabularyLabelForValue("Analytes",
+                // props.get("Q_SAMPLE_TYPE"));
+                // props.put("Q_SAMPLE_TYPE", newVal);
+                //
               }
               if (readSuccess && vocabValid) {
                 List<SampleSummaryBean> summaries = preparator.getSummary();
@@ -318,7 +477,6 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
   @Override
   public void registrationDone(String errors) {
-    // TODO when adding mysql metadata handle sql down
     if (errors.isEmpty()) {
       logger.info("Sample registration complete!");
       Styles.notification("Registration complete!", "Registration of samples complete.",
@@ -342,22 +500,6 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
   protected abstract LinkedHashMap<PreliminaryOpenbisExperiment, List<ISampleBean>> translateParsedExperiments(
       SamplePreparator preparator);
-
-  // public MissingInfoComponent initMissingInfoComponent(
-  // ProjectInformationComponent projectInfoComponent,
-  // Map<String, List<String>> missingCategoryToValues, Map<String, List<String>> catToVocabulary,
-  // ValueChangeListener missingInfoFilledListener) {
-  // MissingInfoComponent newQ = new MissingInfoComponent();
-  // newQ.init(projectInfoComponent, missingCategoryToValues, catToVocabulary,
-  // missingInfoFilledListener);
-  // replaceComponent(questionaire, newQ);
-  // questionaire = newQ;
-  // return questionaire;
-  // }
-  //
-  // public MissingInfoComponent getMissingInfoComponent() {
-  // return questionaire;
-  // }
 
   @Override
   protected void prepareBarcodeDownload(List<List<ISampleBean>> levels) {

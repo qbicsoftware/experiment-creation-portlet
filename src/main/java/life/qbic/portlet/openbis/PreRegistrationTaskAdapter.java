@@ -8,6 +8,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ch.ethz.sis.openbis.generic.asapi.v3.dto.sample.Sample;
+import life.qbic.datamodel.experiments.ExperimentType;
 import life.qbic.datamodel.identifiers.SampleCodeFunctions;
 import life.qbic.datamodel.samples.ISampleBean;
 import life.qbic.datamodel.samples.SampleType;
@@ -80,21 +81,30 @@ public class PreRegistrationTaskAdapter {
     Map<String, String> oldCodesToNew = new HashMap<>();
 
     for (PreliminaryOpenbisExperiment exp : samplesToRegister.keySet()) {
-
-      String expCode = project + "E" + firstFreeExperimentID;
+      String expCode = null;
+      if (exp.getType().equals(ExperimentType.Q_PROJECT_DETAILS)) {
+        expCode = project + "_INFO";
+      } else {
+        expCode = project + "E" + firstFreeExperimentID;
+        firstFreeExperimentID++;
+      }
       exp.setCode(expCode);
-      firstFreeExperimentID++;
 
       for (ISampleBean b : samplesToRegister.get(exp)) {
         if (b instanceof TSVSampleBean) {
           TSVSampleBean s = (TSVSampleBean) b;
           String code = "";
-          if (s.getType().equals(SampleType.Q_BIOLOGICAL_ENTITY)) {
-            code = project + "ENTITY-" + firstFreeEntityID;
-            firstFreeEntityID++;
-          } else {
-            code = firstFreeBarcode;
-            firstFreeBarcode = SampleCodeFunctions.incrementSampleCode(code);
+          switch (s.getType()) {
+            case Q_BIOLOGICAL_ENTITY:
+              code = project + "ENTITY-" + firstFreeEntityID;
+              firstFreeEntityID++;
+              break;
+            case Q_ATTACHMENT_SAMPLE:
+              code = project + "000";
+              break;
+            default:
+              code = firstFreeBarcode;
+              firstFreeBarcode = SampleCodeFunctions.incrementSampleCode(code);
           }
           oldCodesToNew.put(s.getCode(), code);
           s.setSpace(space);
