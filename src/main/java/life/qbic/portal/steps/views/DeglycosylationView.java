@@ -1,4 +1,4 @@
-src/main/java/life/qbic/portal/parsing/package life.qbic.portal.steps.views;
+package life.qbic.portal.steps.views;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
