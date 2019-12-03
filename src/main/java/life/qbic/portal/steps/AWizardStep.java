@@ -135,6 +135,11 @@ public abstract class AWizardStep extends VerticalLayout {
 
     tabs.removeAllComponents();
     tabs.addTab(target, caption);
+    if(target instanceof VerticalLayout) {
+//      VerticalLayout start = (VerticalLayout) target;
+//      start.set
+      //TODO use custom class for layout, add function to reload project and call it here
+    }
   }
 
   protected abstract boolean isValid();
