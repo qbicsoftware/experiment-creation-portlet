@@ -65,12 +65,13 @@ public class RegistrationView extends ARegistrationView implements IWizardStep {
     // TODO this is only true if there is only one level of analytes!
     List<ISampleBean> proteins = samples.get(numLevels - 1);
 
-    builder.append("QBiC Code\t" + "Sample Name\t" + "Sample Description" + "\n");
+    builder.append("QBiC Code\t" + "Sample Name\t" + "Sample Description\t" + "Pretreatment\t"
+        + "Dilution" + "\n");
 
     for (ISampleBean s : proteins) {
       Map<String, Object> props = s.getMetadata();
-      builder.append(
-          s.getCode() + "\t" + props.get("Q_EXTERNALDB_ID") + "\t" + s.getSecondaryName() + "\n");
+      builder.append(s.getCode() + "\t" + props.get("Q_EXTERNALDB_ID") + "\t" + s.getSecondaryName()
+          + "\t" + props.get("Q_PRE_TREATMENT") + "\t" + props.get("Q_ADDITIONAL_INFO") + "\n");
     }
 
     setTSVWithBarcodes(builder.toString(), TimeUtils.getCurrentTimestampString() + "_barcodes");
