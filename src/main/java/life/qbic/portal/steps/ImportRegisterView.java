@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.xml.bind.JAXBException;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -183,15 +184,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
     tsvDL.extend(button);
     return v;
   }
-
-  public static void main(String[] args) {
-    List<String> tests =
-        new ArrayList<>(Arrays.asList("xexample.rar", "example2.rar", "examplkjbnjasbda"));
-    for (String t : tests) {
-      System.out.println(t.replaceAll("example.*\\.rar", ""));
-    }
-  }
-
+  
   private File createFileWithBarcodes(File example, List<String> barcodes) throws IOException {
     Path path = example.toPath();
     Charset charset = StandardCharsets.UTF_8;
@@ -204,14 +197,10 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
     String res = header + "\n";
     for (String barcode : barcodes) {
-      // String line = content.replaceAll("example", barcode + "example");
       String line = content.replaceAll("barcode_placeholder", barcode).trim();
       res += line + "\n";
     }
-
-    System.out.println(res);
-    res = res.replaceAll("example.*\\.rar", "");
-    System.out.println(res);
+    res = res.replaceAll("example.*\\.raw", "");
     String tmpPath = Paths.get(OverviewUIPortlet.tmpFolder,
         TimeUtils.getCurrentTimestampString() + path.getFileName()).toString();
 
@@ -265,25 +254,20 @@ public abstract class ImportRegisterView extends ARegistrationView {
                   readController.getVocabLabelsToCodes("Q_CHROMATOGRAPHY_TYPES");
               Map<String, String> purificationMethods =
                   readController.getVocabLabelsToCodes("Q_PROTEIN_PURIFICATION_METHODS");
-              // Map<String, String> taxMap =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_NCBI_TAXONOMY");
-              // Map<String, String> tissueMap =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_PRIMARY_TISSUES");
-              // Map<String, String> deviceMap =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_MS_DEVICES");
-              // Map<String, String> cellLinesMap =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_CELL_LINES");
-              // Map<String, String> chromTypes =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_CHROMATOGRAPHY_TYPES");
-              // Map<String, String> purificationMethods =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_PROTEIN_PURIFICATION_METHODS");
-              // Map<String, String> antibodiesWithLabels =
-              // openbis.getVocabCodesAndLabelsForVocab("Q_ANTIBODY");
 
               Map<String, String> fractionationTypes =
                   readController.getVocabLabelsToCodes("Q_MS_FRACTIONATION_PROTOCOLS");
+              Map<String, String> fractionationMerge = new HashMap<>();
+              fractionationMerge.putAll(chromTypes);
+              fractionationMerge.putAll(fractionationTypes);
+
               Map<String, String> enrichmentTypes =
-                  readController.getVocabLabelsToCodes("Q_MS_ENRICHMENT_PROTOCOLS");
+                  readController.getVocabLabelsToCodes("Q_CHROMATOGRAPHY_TYPES");// here we use
+                                                                                 // chromatography
+                                                                                 // types, as the
+                                                                                 // enrichment
+                                                                                 // vocabulary is
+                                                                                 // too basic
               Map<String, String> lcmsMethods =
                   readController.getVocabLabelsToCodes("Q_MS_LCMS_METHODS");
               Map<String, String> labelingMethods =
@@ -294,7 +278,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
                   new HashSet<>(lcmsMethods.values()));
               experimentTypeVocabularies.put("Q_MS_FRACTIONATION_METHOD",
                   new HashSet<String>(fractionationTypes.values()));
-              experimentTypeVocabularies.put("Q_MS_ENRICHMENT_METHOD",
+              experimentTypeVocabularies.put("Q_MS_ENRICHMENT_METHOD_DETAILED",
                   new HashSet<String>(enrichmentTypes.values()));
               experimentTypeVocabularies.put("Q_LABELING_METHOD",
                   new HashSet<String>(labelingMethods.values()));
@@ -308,7 +292,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
               catToVocabulary.put("LC Column", chromTypes);
               catToVocabulary.put("Sample Cleanup", purificationMethods);
               catToVocabulary.put("MS Device", deviceMap);
-              catToVocabulary.put("Fractionation Type", fractionationTypes);
+              catToVocabulary.put("Fractionation Type", fractionationMerge);
               catToVocabulary.put("Enrichment", enrichmentTypes);
               catToVocabulary.put("Labeling Type", labelingMethods);
               catToVocabulary.put("Labeling/Derivitisation", labelingMethods);
@@ -317,7 +301,8 @@ public abstract class ImportRegisterView extends ARegistrationView {
               boolean parseGraph = false;
 
               boolean readSuccess = preparator.processTSV(file, reader, parseGraph);
-              boolean vocabValid = true;
+              boolean vocabValid = false;
+
               if (readSuccess) {
                 msProperties =
                     preparator.getSpecialExperimentsOfType(ExperimentType.Q_MS_MEASUREMENT);
@@ -333,17 +318,11 @@ public abstract class ImportRegisterView extends ARegistrationView {
                 }
                 Map<String, Set<String>> pretransformedProperties = new HashMap<>();
 
-                // TODO
-                // pretransformedProperties.put("Fractionation_Enrichment_Placeholder", new
-                // HashSet<>(
-                // Arrays.asList("Q_MS_FRACTIONATION_METHOD", "Q_MS_ENRICHMENT_METHOD")));
-
                 vocabValid = validator.transformAndValidateExperimentMetadata(metadataList,
                     pretransformedProperties);
-                logger.debug(metadataList);
+                logger.info(metadataList);
 
                 // TODO
-                vocabValid = true;
                 Map<String, List<String>> parsedCategoryToValues = preparator
                     .getParsedCategoriesToValues(new ArrayList<String>(Arrays.asList("LC Column",
                         "Sample Cleanup", "MS Device", "Fractionation Type", "Enrichment",
@@ -352,7 +331,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
                 Map<String, Set<String>> keyToFields = new HashMap<>();
                 keyToFields.put("Q_MS_DEVICE", new HashSet<>(Arrays.asList("MS Device")));
                 keyToFields.put("Q_CHROMATOGRAPHY_TYPE", new HashSet<>(Arrays.asList("LC Column")));
-                keyToFields.put("Q_MS_ENRICHMENT_METHOD",
+                keyToFields.put("Q_MS_ENRICHMENT_METHOD_DETAILED",
                     new HashSet<>(Arrays.asList("Enrichment")));
                 keyToFields.put("Q_MS_PURIFICATION_METHOD",
                     new HashSet<>(Arrays.asList("Sample Cleanup")));
@@ -364,24 +343,42 @@ public abstract class ImportRegisterView extends ARegistrationView {
 
                   @Override
                   public void valueChange(ValueChangeEvent event) {
-                    boolean infoComplete = questionaire.isValid();
+                    boolean valid = questionaire.isValid();
 
-                    if (infoComplete) {
+                    if (valid) {
                       for (Map<String, Object> props : metadataList) {
+                        Map<String, String> newProps = new HashMap<>();
                         for (String key : props.keySet()) {
                           if (keyToFields.containsKey(key)) {
                             for (String val : keyToFields.get(key)) {
                               String entry = (String) props.get(key);
+                              String newLabel = questionaire.getVocabularyLabelForValue(val, entry);
                               String newVal = questionaire.getVocabularyCodeForValue(val, entry);
                               if (newVal != null) {
-                                props.put(key, newVal);// TODO test
+                                // TODO smarter?
+                                if (key.equals("Q_MS_FRACTIONATION_METHOD")) {
+                                  if (!fractionationTypes.containsKey(newLabel)) {
+                                    // not found in basic vocab, choose "other" and add specific
+                                    // type to specific property
+                                    props.put(key, "OTHER");
+                                    newProps.put("Q_MS_FRACTIONATION_METHOD_OTHER", newVal);
+                                  } else {
+                                    props.put(key, newVal);
+                                  }
+                                } else {
+                                  props.put(key, newVal);
+                                }
                               }
                             }
                           }
                         }
+                        for (String newProp : newProps.keySet()) {
+                          props.put(newProp, newProps.get(newProp));
+                        }
                       }
-                      logger.debug("after replacement:");
-                      logger.debug(metadataList);
+                      logger.info("after replacement:");
+                      logger.info(metadataList);
+                      handleImportResults(valid);
                     }
                   }
                 };
@@ -434,7 +431,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
                 // props.put("Q_SAMPLE_TYPE", newVal);
                 //
               }
-              if (readSuccess && vocabValid) {
+              if (readSuccess) {
                 List<SampleSummaryBean> summaries = preparator.getSummary();
                 for (SampleSummaryBean s : summaries) {
                   // String translation = reverseTaxMap.get(s.getFullSampleContent());
@@ -444,7 +441,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
                 }
                 Styles.notification("Upload successful",
                     "Experiment was successfully uploaded and read.", NotificationType.SUCCESS);
-                handleImportResults(summaries);
+                handleImportResults(vocabValid);
 
               } else {
                 if (!readSuccess) {
@@ -493,9 +490,11 @@ public abstract class ImportRegisterView extends ARegistrationView {
     }
   }
 
-  protected void handleImportResults(List<SampleSummaryBean> summaries) {
+  protected void handleImportResults(boolean vocabValid) {
     samplesToRegister = translateParsedExperiments(preparator);
-    setSummaryAndEnableRegistration();
+    if (vocabValid) {
+      setSummaryAndEnableRegistration();
+    }
   }
 
   protected abstract LinkedHashMap<PreliminaryOpenbisExperiment, List<ISampleBean>> translateParsedExperiments(
@@ -521,7 +520,7 @@ public abstract class ImportRegisterView extends ARegistrationView {
     for (String line : tsv) {
       String[] splt = line.split("\t");
       if (filePos < 0) {
-        filePos = Arrays.asList(splt).indexOf("File Name");// TODO generalize?
+        filePos = Arrays.asList(splt).indexOf("File Name");
         builder.append("QBiC Code\t" + line + "\n");
       } else {
         String file = splt[filePos];
