@@ -178,10 +178,10 @@ public class BiologicsCultureCreationView extends AWizardStep implements IWizard
       props.put("Q_EXTERNALDB_ID", extID);
       props.put("Q_PRE_TREATMENT", pretreat);
       props.put("Q_SAMPLE_TYPE", "PROTEINS");
-      props.put("Q_ADDITIONAL_INFO", info);
-      // TODO
+      props.put("Q_ADDITIONAL_INFO", dilution);
+      // TODO ?
 //      props.put("Q_DILUTION", dilution);
-      TSVSampleBean s = new TSVSampleBean(id.toString(), SampleType.Q_TEST_SAMPLE, dilution, props);
+      TSVSampleBean s = new TSVSampleBean(id.toString(), SampleType.Q_TEST_SAMPLE, info, props);
       s.addParentID(cultureSample.getCode());
       samples.add(s);
     }
