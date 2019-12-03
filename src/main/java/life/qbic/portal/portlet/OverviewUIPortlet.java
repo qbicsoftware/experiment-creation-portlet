@@ -141,6 +141,8 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       this.openbis = new OpenBisClient(config.getDataSourceUser(), config.getDataSourcePassword(),
           config.getDataSourceUrl());
       this.openbis.login();
+      isAdmin = openbis.isUserAdmin(user);
+
       v3 = new OpenbisV3APIWrapper(config.getDataSourceUrl(), config.getDataSourceUser(),
           config.getDataSourcePassword(), user);
     } catch (Exception e) {
@@ -154,8 +156,6 @@ public class OverviewUIPortlet extends QBiCPortletUI {
         config.getMysqlDB(), config.getMysqlUser(), config.getMysqlPass());
     DBManager dbm = new DBManager(mysqlConfig);
 
-    v3 = new OpenbisV3APIWrapper(config.getDataSourceUrl(), config.getDataSourceUser(),
-        config.getDataSourcePassword(), user);
     readController = new OpenbisV3ReadController(v3);
     if (v3Registration) {
       creationController = new OpenbisV3CreationController(readController, user, v3);
