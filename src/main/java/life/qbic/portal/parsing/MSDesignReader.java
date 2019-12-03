@@ -140,7 +140,7 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
     if (headerMapping.containsKey("Enrichment")) {
       String val = row[headerMapping.get("Enrichment")];
       if (!val.isEmpty()) {
-        metadata.put("Q_MS_ENRICHMENT_METHOD", val);
+        metadata.put("Q_MS_ENRICHMENT_METHOD_DETAILED", val);
       }
     }
     String val = row[headerMapping.get("Fractionation Type")];
@@ -333,6 +333,7 @@ public abstract class MSDesignReader implements IExperimentalDesignReader {
   }
 
   public void initReader() {
+    error = null;
     parsedCategoriesToValues = new HashMap<>();
     tsvByRows = new ArrayList<String>();
   }
