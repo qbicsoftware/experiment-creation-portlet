@@ -522,12 +522,13 @@ public class OverviewUIPortlet extends QBiCPortletUI {
       userString = userID;
     } else {
       String fullname = user.getFullName();
-      String email = user.getEmailAddress();
-      userString += ("<a href=\"mailto:");
-      userString += (email);
-      userString += ("\" style=\"color: #0068AA; text-decoration: none\">");
-      userString += (fullname);
-      userString += ("</a>");
+      return fullname;
+//      String email = user.getEmailAddress();
+//      userString += ("<a href=\"mailto:");
+//      userString += (email);
+//      userString += ("\" style=\"color: #0068AA; text-decoration: none\">");
+//      userString += (fullname);
+//      userString += ("</a>");
     }
     return userString;
   }
