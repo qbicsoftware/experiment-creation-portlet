@@ -155,7 +155,7 @@ public abstract class ARegistrationView extends AWizardStep {
     addComponent(summaryLabel);
 
     // sample registration button
-    register = new Button("Register All");
+    register = new Button("Save Experiment");
     register.setVisible(false);
     addComponent(register);
 
